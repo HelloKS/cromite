@@ -1,0 +1,2869 @@
+From d227c48a7bfb720d577c9c21596f7acc03c55650 Mon Sep 17 00:00:00 2001
+From: HelloKS <kqwe1859@gmail.com>
+Date: Tue, 31 Dec 2024 15:44:33 +0000
+Subject: [PATCH] Stock Eyeo Adblock for Cromite
+
+FILE:Stock-Eyeo-Adblock-for-Cromite.patch
+---
+ .../android/java/res/xml/main_preferences.xml |  10 +-
+ chrome/browser/adblock/android/BUILD.gn       |   4 +-
+ .../adblock/android/adblock_strings.grd       |   3 +
+ .../java/res/xml/adblock_more_options.xml     |  34 --
+ ...ences.xml => eyeo_adblock_preferences.xml} |  30 +-
+ .../AdblockCustomFilterListsFragment.java     |   7 -
+ .../settings/AdblockMoreOptionsFragment.java  |  34 --
+ .../settings/AdblockSettingsFragment.java     |  86 ++---
+ .../adblock_private/adblock_private_api.cc    |  12 +
+ .../api/adblock_private/adblock_private_api.h |  16 +
+ ...hrome_browser_main_extra_parts_profiles.cc |   2 -
+ .../common/extensions/api/adblock_private.idl |   2 +
+ .../adblock/android/adblock_controller_jni.cc |  12 +
+ .../components/adblock/AdblockController.java |  10 +-
+ components/adblock/content/browser/BUILD.gn   |  15 -
+ .../browser/adblock_content_browser_client.h  |  68 ++--
+ .../browser/adblock_internals_page_handler.cc |  19 +-
+ .../browser/adblock_internals_page_handler.h  |   4 -
+ .../browser/adblock_url_loader_factory.cc     |  19 +-
+ .../browser/adblock_webcontents_observer.cc   |  22 +-
+ .../browser/adblock_webcontents_observer.h    |   7 +-
+ .../adblock/content/browser/eyeo_page_info.cc |  38 ---
+ .../adblock/content/browser/eyeo_page_info.h  |  53 ---
+ .../browser/factories/embedding_utils.cc      |   2 -
+ .../browser/factories/embedding_utils.h       |   7 +-
+ .../factories/subscription_service_factory.cc |   2 +-
+ .../content/browser/page_view_stats.cc        | 291 -----------------
+ .../adblock/content/browser/page_view_stats.h | 131 --------
+ components/adblock/core/BUILD.gn              |  36 --
+ .../activeping_telemetry_topic_provider.cc    | 299 -----------------
+ .../activeping_telemetry_topic_provider.h     |  94 ------
+ .../adblock/core/adblock_telemetry_service.cc | 308 ------------------
+ .../adblock/core/adblock_telemetry_service.h  | 132 --------
+ .../adblock/core/common/adblock_constants.cc  |   2 -
+ .../adblock/core/common/adblock_constants.h   |   1 -
+ .../adblock/core/common/adblock_utils.cc      |  10 -
+ components/adblock/core/common/app_info.cc    |  12 -
+ .../adblock/core/converter/parser/metadata.cc |   8 +-
+ .../core/converter/parser/url_filter.cc       |   4 +
+ .../converter/parser/url_filter_options.cc    |   7 +-
+ components/adblock/core/resources/BUILD.gn    |  23 --
+ .../core/resources/adblock_resources.grd      |   3 -
+ .../adblock/core/sitekey_storage_impl.cc      |   4 +
+ .../filtering_configuration_maintainer.h      |   2 +
+ ...filtering_configuration_maintainer_impl.cc |  20 +-
+ .../filtering_configuration_maintainer_impl.h |   2 +
+ .../core/subscription/subscription_config.cc  |   5 +-
+ .../core/subscription/subscription_service.h  |   1 +
+ .../subscription/subscription_service_impl.cc |   9 +
+ .../subscription/subscription_service_impl.h  |   2 +
+ .../browser/bromite_content_settings/ads.inc  |   3 +
+ 51 files changed, 215 insertions(+), 1712 deletions(-)
+ delete mode 100644 chrome/browser/adblock/android/java/res/xml/adblock_more_options.xml
+ rename chrome/browser/adblock/android/java/res/xml/{adblock_preferences.xml => eyeo_adblock_preferences.xml} (73%)
+ delete mode 100644 chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockMoreOptionsFragment.java
+ delete mode 100644 components/adblock/content/browser/eyeo_page_info.cc
+ delete mode 100644 components/adblock/content/browser/eyeo_page_info.h
+ delete mode 100644 components/adblock/content/browser/page_view_stats.cc
+ delete mode 100644 components/adblock/content/browser/page_view_stats.h
+ delete mode 100644 components/adblock/core/activeping_telemetry_topic_provider.cc
+ delete mode 100644 components/adblock/core/activeping_telemetry_topic_provider.h
+ delete mode 100644 components/adblock/core/adblock_telemetry_service.cc
+ delete mode 100644 components/adblock/core/adblock_telemetry_service.h
+ create mode 100644 components/content_settings/core/browser/bromite_content_settings/ads.inc
+
+diff --git a/chrome/android/java/res/xml/main_preferences.xml b/chrome/android/java/res/xml/main_preferences.xml
+index 3924a76c9c..9773c595fc 100644
+--- a/chrome/android/java/res/xml/main_preferences.xml
++++ b/chrome/android/java/res/xml/main_preferences.xml
+@@ -93,11 +93,6 @@ for the previous order (main_preferences_legacy). -->
+         android:key="autofill_options"
+         android:order="16"
+         android:title="@string/autofill_options_title" />
+-    <Preference
+-        android:fragment="org.chromium.chrome.browser.adblock.settings.AdblockSettingsFragment"
+-        android:key="adblock"
+-        android:order="17"
+-        android:title="@string/adblock_settings_title" />
+ 
+     <PreferenceCategory
+         android:key="advanced_section"
+@@ -128,6 +123,11 @@ for the previous order (main_preferences_legacy). -->
+         android:key="adblock"
+         android:order="13"
+         android:title="@string/prefs_adblock"/>
++    <Preference
++        android:fragment="org.chromium.chrome.browser.adblock.settings.AdblockSettingsFragment"
++        android:key="eyeo_adblock"
++        android:order="13"
++        android:title="@string/adblock_settings_title" />
+     <Preference
+         android:key="notifications"
+         android:order="22"
+diff --git a/chrome/browser/adblock/android/BUILD.gn b/chrome/browser/adblock/android/BUILD.gn
+index 762302891a..a9dfb757a9 100644
+--- a/chrome/browser/adblock/android/BUILD.gn
++++ b/chrome/browser/adblock/android/BUILD.gn
+@@ -103,7 +103,6 @@ android_library("adblock_ui_java") {
+     "java/src/org/chromium/chrome/browser/adblock/settings/AdblockCustomItemFragment.java",
+     "java/src/org/chromium/chrome/browser/adblock/settings/AdblockFilterListsAdapter.java",
+     "java/src/org/chromium/chrome/browser/adblock/settings/AdblockFilterListsFragment.java",
+-    "java/src/org/chromium/chrome/browser/adblock/settings/AdblockMoreOptionsFragment.java",
+     "java/src/org/chromium/chrome/browser/adblock/settings/AdblockSettingsFragment.java",
+   ]
+ 
+@@ -147,8 +146,7 @@ android_resources("java_ui_resources") {
+     "java/res/layout/adblock_custom_item.xml",
+     "java/res/layout/adblock_custom_item_settings.xml",
+     "java/res/layout/adblock_filter_lists_list_item.xml",
+-    "java/res/xml/adblock_more_options.xml",
+-    "java/res/xml/adblock_preferences.xml",
++    "java/res/xml/eyeo_adblock_preferences.xml",
+   ]
+ 
+   deps = [ ":adblock_strings_grd" ]
+diff --git a/chrome/browser/adblock/android/adblock_strings.grd b/chrome/browser/adblock/android/adblock_strings.grd
+index 7e4226f493..3cc6921e48 100644
+--- a/chrome/browser/adblock/android/adblock_strings.grd
++++ b/chrome/browser/adblock/android/adblock_strings.grd
+@@ -239,6 +239,9 @@
+       <message name="IDS_FRAGMENT_ADBLOCK_MORE_OPTIONS_CUSTOM_FILTERS_HINT" desc="Hint shown in a EditView for adding custom filter">
+         Enter filter
+       </message>
++      <message name="IDS_FRAGMENT_ADBLOCK_SETTINGS_START_UPDATE" desc="">
++        Check for updates now
++      </message>
+     </messages>
+   </release>
+ </grit>
+diff --git a/chrome/browser/adblock/android/java/res/xml/adblock_more_options.xml b/chrome/browser/adblock/android/java/res/xml/adblock_more_options.xml
+deleted file mode 100644
+index 314b3bce61..0000000000
+--- a/chrome/browser/adblock/android/java/res/xml/adblock_more_options.xml
++++ /dev/null
+@@ -1,34 +0,0 @@
+-<?xml version="1.0" encoding="utf-8"?>
+-<!--
+-  This file is part of eyeo Chromium SDK,
+-  Copyright (C) 2006-present eyeo GmbH
+-  eyeo Chromium SDK is free software: you can redistribute it and/or modify
+-  it under the terms of the GNU General Public License version 3 as
+-  published by the Free Software Foundation.
+-  eyeo Chromium SDK is distributed in the hope that it will be useful,
+-  but WITHOUT ANY WARRANTY; without even the implied warranty of
+-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-  GNU General Public License for more details.
+-  You should have received a copy of the GNU General Public License
+-  along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+--->
+-
+-<androidx.preference.PreferenceScreen
+-    xmlns:android="http://schemas.android.com/apk/res/android"
+-    xmlns:app="http://schemas.android.com/apk/res-auto">
+-
+-    <androidx.preference.Preference
+-        android:fragment="org.chromium.chrome.browser.adblock.settings.AdblockCustomFilterListsFragment"
+-        android:key="fragment_adblock_more_options_custom_filter_lists_key"
+-        android:title="@string/fragment_adblock_more_options_custom_filter_lists_title"
+-        app:iconSpaceReserved="false"
+-        android:summary="@string/fragment_adblock_more_options_custom_filter_lists_summary" />
+-
+-    <androidx.preference.Preference
+-        android:fragment="org.chromium.chrome.browser.adblock.settings.AdblockCustomFiltersFragment"
+-        android:key="fragment_adblock_more_options_custom_filter_key"
+-        android:title="@string/fragment_adblock_more_options_custom_filters_title"
+-        app:iconSpaceReserved="false"
+-        android:summary="@string/fragment_adblock_more_options_custom_filters_summary" />
+-
+-</androidx.preference.PreferenceScreen>
+diff --git a/chrome/browser/adblock/android/java/res/xml/adblock_preferences.xml b/chrome/browser/adblock/android/java/res/xml/eyeo_adblock_preferences.xml
+similarity index 73%
+rename from chrome/browser/adblock/android/java/res/xml/adblock_preferences.xml
+rename to chrome/browser/adblock/android/java/res/xml/eyeo_adblock_preferences.xml
+index dd31643077..7122dc3fb6 100644
+--- a/chrome/browser/adblock/android/java/res/xml/adblock_preferences.xml
++++ b/chrome/browser/adblock/android/java/res/xml/eyeo_adblock_preferences.xml
+@@ -32,13 +32,6 @@
+         app:iconSpaceReserved="false"
+         android:summary="@string/fragment_adblock_settings_filter_lists_summary" />
+ 
+-    <!-- Acceptable Ads: enabled/disabled -->
+-    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+-        android:key="fragment_adblock_settings_aa_enabled_key"
+-        android:title="@string/fragment_adblock_settings_aa_enabled_title"
+-        app:iconSpaceReserved="false"
+-        android:summary="@string/fragment_adblock_settings_aa_enabled_summary" />
+-
+     <!-- AutoInstall: enabled/disabled -->
+     <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+         android:key="fragment_adblock_settings_auto_install_enabled_key"
+@@ -46,18 +39,23 @@
+         app:iconSpaceReserved="false"
+         android:summary="@string/fragment_adblock_settings_auto_install_enabled_summary" />
+ 
+-    <!-- Allowed domains -->
++    <!-- Custom Filters -->
++    <androidx.preference.Preference
++        android:fragment="org.chromium.chrome.browser.adblock.settings.AdblockCustomFilterListsFragment"
++        android:key="fragment_adblock_more_options_custom_filter_lists_key"
++        android:title="@string/fragment_adblock_more_options_custom_filter_lists_title"
++        app:iconSpaceReserved="false"
++        android:summary="@string/fragment_adblock_more_options_custom_filter_lists_summary" />
++
+     <androidx.preference.Preference
+-        android:fragment="org.chromium.chrome.browser.adblock.settings.AdblockAllowedDomainsFragment"
+-        android:key="fragment_adblock_settings_allowed_domains_key"
+-        android:title="@string/fragment_adblock_settings_allowed_domains_title"
++        android:fragment="org.chromium.chrome.browser.adblock.settings.AdblockCustomFiltersFragment"
++        android:key="fragment_adblock_more_options_custom_filter_key"
++        android:title="@string/fragment_adblock_more_options_custom_filters_title"
+         app:iconSpaceReserved="false"
+-        android:summary="@string/fragment_adblock_settings_allowed_domains_summary" />
++        android:summary="@string/fragment_adblock_more_options_custom_filters_summary" />
+ 
+     <androidx.preference.Preference
+-        android:fragment="org.chromium.chrome.browser.adblock.settings.AdblockMoreOptionsFragment"
+-        android:key="fragment_adblock_settings_more_options_key"
+-        android:title="@string/fragment_adblock_settings_more_options_title"
+-        app:iconSpaceReserved="false"/>
++        android:key="fragment_adblock_settings_start_update"
++        android:title="@string/fragment_adblock_settings_start_update"/>
+ 
+ </androidx.preference.PreferenceScreen>
+diff --git a/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockCustomFilterListsFragment.java b/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockCustomFilterListsFragment.java
+index 70a7d6b422..f7cc6748d2 100644
+--- a/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockCustomFilterListsFragment.java
++++ b/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockCustomFilterListsFragment.java
+@@ -56,13 +56,6 @@ public class AdblockCustomFilterListsFragment extends AdblockCustomItemFragment
+             if (recommended.contains(subscription)) {
+                 continue;
+             }
+-            // FIXME(kzlomek): Remove this after DPD-1613
+-            if (subscription
+-                    .url()
+-                    .toString()
+-                    .equals("https://easylist-downloads.adblockplus.org/exceptionrules.txt")) {
+-                continue;
+-            }
+             customStrings.add(subscription.url().toString());
+         }
+ 
+diff --git a/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockMoreOptionsFragment.java b/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockMoreOptionsFragment.java
+deleted file mode 100644
+index f0949e2031..0000000000
+--- a/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockMoreOptionsFragment.java
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// This file is part of eyeo Chromium SDK,
+-// Copyright (C) 2006-present eyeo GmbH
+-// eyeo Chromium SDK is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License version 3 as
+-// published by the Free Software Foundation.
+-// eyeo Chromium SDK is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-// GNU General Public License for more details.
+-// You should have received a copy of the GNU General Public License
+-// along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+-
+-package org.chromium.chrome.browser.adblock.settings;
+-
+-import android.os.Bundle;
+-
+-import androidx.preference.PreferenceFragmentCompat;
+-
+-import org.chromium.chrome.browser.adblock.R;
+-
+-public class AdblockMoreOptionsFragment extends PreferenceFragmentCompat {
+-    public AdblockMoreOptionsFragment() {}
+-
+-    @Override
+-    public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+-        addPreferencesFromResource(R.xml.adblock_more_options);
+-    }
+-
+-    @Override
+-    public void onActivityCreated(Bundle savedInstanceState) {
+-        super.onActivityCreated(savedInstanceState);
+-        getActivity().setTitle(R.string.fragment_adblock_more_options_custom_filter_lists_title);
+-    }
+-}
+diff --git a/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockSettingsFragment.java b/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockSettingsFragment.java
+index 3f85bfb517..3b9bf363a8 100644
+--- a/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockSettingsFragment.java
++++ b/chrome/browser/adblock/android/java/src/org/chromium/chrome/browser/adblock/settings/AdblockSettingsFragment.java
+@@ -13,6 +13,7 @@
+ package org.chromium.chrome.browser.adblock.settings;
+ 
+ import android.os.Bundle;
++import android.widget.Toast;
+ 
+ import androidx.preference.Preference;
+ import androidx.preference.PreferenceFragmentCompat;
+@@ -28,11 +29,11 @@ import org.chromium.components.user_prefs.UserPrefs;
+ public class AdblockSettingsFragment extends PreferenceFragmentCompat
+         implements Preference.OnPreferenceChangeListener {
+     private ChromeSwitchPreference mAdblockEnabled;
+-    private ChromeSwitchPreference mAcceptableAdsEnabled;
+     private ChromeSwitchPreference mAutoInstalledEnabled;
+     private Preference mFilterLists;
+-    private Preference mAllowedDomains;
+-    private Preference mMoreOptions;
++    private Preference mCustomFilterlists;
++    private Preference mCustomFilters;
++    private Preference mStartUpdate;
+ 
+     private static final String SETTINGS_ENABLED_KEY = "fragment_adblock_settings_enabled_key";
+     private static final String SETTINGS_FILTER_LISTS_KEY =
+@@ -41,38 +42,37 @@ public class AdblockSettingsFragment extends PreferenceFragmentCompat
+             "fragment_adblock_settings_aa_enabled_key";
+     private static final String SETTINGS_AUTO_INSTALL_ENABLED_KEY =
+             "fragment_adblock_settings_auto_install_enabled_key";
+-    private static final String SETTINGS_ALLOWED_DOMAINS_KEY =
+-            "fragment_adblock_settings_allowed_domains_key";
+-    private static final String SETTINGS_MORE_OPTIONS_KEY =
+-            "fragment_adblock_settings_more_options_key";
+-
+-    private int mOnOffClickCount;
+-    private static final int ON_OFF_TOGGLE_COUNT_TO_ENABLE_MORE_OPTIONS = 10;
+-    private static final int ON_OFF_TOGGLE_COUNT_TIME_WINDOW_MS = 3000;
+-    private long mOnOffTogleTimestamp;
++    private static final String SETTINGS_CUSTOM_FILTERLIST_KEY =
++            "fragment_adblock_more_options_custom_filter_lists_key";
++    private static final String SETTINGS_CUSTOM_FILTER_KEY =
++            "fragment_adblock_more_options_custom_filter_key";
++    private static final String START_UPDATE_KEY =
++            "fragment_adblock_settings_start_update";
+ 
+     private void bindPreferences() {
+         mAdblockEnabled = (ChromeSwitchPreference) findPreference(SETTINGS_ENABLED_KEY);
+         mFilterLists = findPreference(SETTINGS_FILTER_LISTS_KEY);
+-        mAcceptableAdsEnabled = (ChromeSwitchPreference) findPreference(SETTINGS_AA_ENABLED_KEY);
+         mAutoInstalledEnabled =
+                 (ChromeSwitchPreference) findPreference(SETTINGS_AUTO_INSTALL_ENABLED_KEY);
+-        mAllowedDomains = findPreference(SETTINGS_ALLOWED_DOMAINS_KEY);
+-        mMoreOptions = findPreference(SETTINGS_MORE_OPTIONS_KEY);
+-    }
+-
+-    private boolean areMoreOptionsEnabled() {
+-        return UserPrefs.get(ProfileManager.getLastUsedRegularProfile())
+-                .getBoolean(Pref.ADBLOCK_MORE_OPTIONS_ENABLED);
++        mCustomFilterlists = findPreference(SETTINGS_CUSTOM_FILTERLIST_KEY);
++        mCustomFilters = findPreference(SETTINGS_CUSTOM_FILTER_KEY);
++        mStartUpdate = findPreference(START_UPDATE_KEY);
++        mStartUpdate.setOnPreferenceClickListener(preference -> {
++            AdblockController.getInstance(ProfileManager.getLastUsedRegularProfile()).startUpdate();
++            Toast toast = Toast.makeText(getContext(),
++                "Checking for updates in progress", Toast.LENGTH_LONG);
++            toast.show();
++            // handle the click so the default action isn't triggered.
++            return true;
++        });
+     }
+ 
+     private void applyAdblockEnabled(boolean enabledValue) {
+         mFilterLists.setEnabled(enabledValue);
+-        mAcceptableAdsEnabled.setEnabled(enabledValue);
+         mAutoInstalledEnabled.setEnabled(enabledValue);
+-        mAllowedDomains.setEnabled(enabledValue);
+-        mMoreOptions.setEnabled(enabledValue);
+-        mMoreOptions.setVisible(areMoreOptionsEnabled());
++        mCustomFilterlists.setEnabled(enabledValue);
++        mCustomFilters.setEnabled(enabledValue);
++        mStartUpdate.setEnabled(enabledValue);
+     }
+ 
+     private void synchronizePreferences() {
+@@ -83,46 +83,15 @@ public class AdblockSettingsFragment extends PreferenceFragmentCompat
+         mAdblockEnabled.setOnPreferenceChangeListener(this);
+         applyAdblockEnabled(enabled);
+ 
+-        mAcceptableAdsEnabled.setChecked(
+-                AdblockController.getInstance(ProfileManager.getLastUsedRegularProfile())
+-                        .isAcceptableAdsEnabled());
+-        mAcceptableAdsEnabled.setOnPreferenceChangeListener(this);
+-
+         mAutoInstalledEnabled.setChecked(
+                 AdblockController.getInstance(ProfileManager.getLastUsedRegularProfile())
+                         .isAutoInstallEnabled());
+         mAutoInstalledEnabled.setOnPreferenceChangeListener(this);
+     }
+ 
+-    private void maybeEnableMoreOptions() {
+-        long now = System.currentTimeMillis();
+-        /* Chromium does not have info about build type in its BuildConfig.
+-        We'd have patch it and add - which sounds like an overkill for this
+-        where ENABLE_ASSERTS is pretty close and equivalent unless DCHECKs are
+-        always on.
+-        enable_java_asserts = is_java_debug || dcheck_always_on */
+-        if (BuildConfig.ENABLE_ASSERTS
+-                || mOnOffTogleTimestamp + ON_OFF_TOGGLE_COUNT_TIME_WINDOW_MS >= now) {
+-            ++mOnOffClickCount;
+-        } else {
+-            mOnOffClickCount = 1;
+-        }
+-
+-        mOnOffTogleTimestamp = now;
+-        if (mOnOffClickCount >= ON_OFF_TOGGLE_COUNT_TO_ENABLE_MORE_OPTIONS) {
+-            UserPrefs.get(ProfileManager.getLastUsedRegularProfile())
+-                    .setBoolean(Pref.ADBLOCK_MORE_OPTIONS_ENABLED, true);
+-        }
+-    }
+-
+-    public AdblockSettingsFragment() {
+-        mOnOffClickCount = 0;
+-        mOnOffTogleTimestamp = 0;
+-    }
+-
+     @Override
+     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
+-        addPreferencesFromResource(R.xml.adblock_preferences);
++        addPreferencesFromResource(R.xml.eyeo_adblock_preferences);
+         bindPreferences();
+         synchronizePreferences();
+     }
+@@ -139,12 +108,7 @@ public class AdblockSettingsFragment extends PreferenceFragmentCompat
+             AdblockController.getInstance(ProfileManager.getLastUsedRegularProfile())
+                     .setEnabled((Boolean) newValue);
+ 
+-            maybeEnableMoreOptions();
+-
+             applyAdblockEnabled((Boolean) newValue);
+-        } else if (preference.getKey().equals(SETTINGS_AA_ENABLED_KEY)) {
+-            AdblockController.getInstance(ProfileManager.getLastUsedRegularProfile())
+-                    .setAcceptableAdsEnabled((Boolean) newValue);
+         } else {
+             assert preference.getKey().equals(SETTINGS_AUTO_INSTALL_ENABLED_KEY);
+ 
+diff --git a/chrome/browser/extensions/api/adblock_private/adblock_private_api.cc b/chrome/browser/extensions/api/adblock_private/adblock_private_api.cc
+index 2db2865b29..c72faadb95 100644
+--- a/chrome/browser/extensions/api/adblock_private/adblock_private_api.cc
++++ b/chrome/browser/extensions/api/adblock_private/adblock_private_api.cc
+@@ -368,6 +368,18 @@ void AdblockPrivateAPI::OnListenerAdded(
+ 
+ namespace api {
+ 
++AdblockPrivateStartUpdateFunction::AdblockPrivateStartUpdateFunction() {}
++
++AdblockPrivateStartUpdateFunction::~AdblockPrivateStartUpdateFunction() {}
++
++ExtensionFunction::ResponseAction AdblockPrivateStartUpdateFunction::Run() {
++  auto* subscription_service =
++      adblock::SubscriptionServiceFactory::GetForBrowserContext(
++          browser_context());
++  subscription_service->StartUpdate();
++  return RespondNow(NoArguments());
++}
++
+ AdblockPrivateSetEnabledFunction::AdblockPrivateSetEnabledFunction() {}
+ 
+ AdblockPrivateSetEnabledFunction::~AdblockPrivateSetEnabledFunction() {}
+diff --git a/chrome/browser/extensions/api/adblock_private/adblock_private_api.h b/chrome/browser/extensions/api/adblock_private/adblock_private_api.h
+index a1f1bab92b..46037109fb 100644
+--- a/chrome/browser/extensions/api/adblock_private/adblock_private_api.h
++++ b/chrome/browser/extensions/api/adblock_private/adblock_private_api.h
+@@ -58,6 +58,22 @@ void BrowserContextKeyedAPIFactory<
+ 
+ namespace api {
+ 
++class AdblockPrivateStartUpdateFunction : public ExtensionFunction {
++ public:
++  DECLARE_EXTENSION_FUNCTION("adblockPrivate.startUpdate", UNKNOWN)
++  AdblockPrivateStartUpdateFunction();
++
++ private:
++  ~AdblockPrivateStartUpdateFunction() override;
++
++  ResponseAction Run() override;
++
++  AdblockPrivateStartUpdateFunction(const AdblockPrivateStartUpdateFunction&) =
++      delete;
++  AdblockPrivateStartUpdateFunction& operator=(
++      const AdblockPrivateStartUpdateFunction&) = delete;
++};
++
+ class AdblockPrivateSetEnabledFunction : public ExtensionFunction {
+  public:
+   DECLARE_EXTENSION_FUNCTION("adblockPrivate.setEnabled", UNKNOWN)
+diff --git a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+index 4d755f0761..be0cfccf2e 100644
+--- a/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
++++ b/chrome/browser/profiles/chrome_browser_main_extra_parts_profiles.cc
+@@ -240,7 +240,6 @@
+ #include "chrome/common/buildflags.h"
+ #include "chrome/common/chrome_features.h"
+ #include "components/adblock/content/browser/factories/adblock_request_throttle_factory.h"
+-#include "components/adblock/content/browser/factories/adblock_telemetry_service_factory.h"
+ #include "components/adblock/content/browser/factories/content_security_policy_injector_factory.h"
+ #include "components/adblock/content/browser/factories/element_hider_factory.h"
+ #include "components/adblock/content/browser/factories/resource_classification_runner_factory.h"
+@@ -865,7 +864,6 @@ void ChromeBrowserMainExtraPartsProfiles::
+   // Makes manual testing possible.
+   FakeSmartCardDeviceServiceFactory::GetInstance();
+ #endif
+-  adblock::AdblockTelemetryServiceFactory::GetInstance();
+   adblock::AdblockRequestThrottleFactory::GetInstance();
+   adblock::ContentSecurityPolicyInjectorFactory::GetInstance();
+   adblock::ElementHiderFactory::GetInstance();
+diff --git a/chrome/common/extensions/api/adblock_private.idl b/chrome/common/extensions/api/adblock_private.idl
+index 6cad537a20..9278e58784 100644
+--- a/chrome/common/extensions/api/adblock_private.idl
++++ b/chrome/common/extensions/api/adblock_private.idl
+@@ -99,6 +99,8 @@ callback SessionStatsCallback = void(SessionStatsEntry[] result);
+ 
+ [deprecated="Use eyeoFilteringPrivate methods instead."]
+ interface Functions {
++  // Start an update cycle
++  static void startUpdate();
+   // Allows to turn Adblock on or off.
+   static void setEnabled(boolean enabled);
+   // Returns whether Adblock is on.
+diff --git a/components/adblock/android/adblock_controller_jni.cc b/components/adblock/android/adblock_controller_jni.cc
+index a358710292..074f7459ea 100644
+--- a/components/adblock/android/adblock_controller_jni.cc
++++ b/components/adblock/android/adblock_controller_jni.cc
+@@ -103,6 +103,18 @@ std::vector<ScopedJavaLocalRef<jobject>> CSubscriptionsToJObjects(
+ 
+ }  // namespace
+ 
++static void
++JNI_AdblockController_StartUpdate(
++    JNIEnv* env,
++    const base::android::JavaParamRef<jobject>& jbrowser_context_handle) {
++  auto* subscription_service =
++      adblock::SubscriptionServiceFactory::GetForBrowserContext(
++          content::BrowserContextFromJavaHandle(jbrowser_context_handle));
++  if (subscription_service) {
++    subscription_service->StartUpdate();
++  }
++}
++
+ static base::android::ScopedJavaLocalRef<jobjectArray>
+ JNI_AdblockController_GetInstalledSubscriptions(
+     JNIEnv* env,
+diff --git a/components/adblock/android/java/src/org/chromium/components/adblock/AdblockController.java b/components/adblock/android/java/src/org/chromium/components/adblock/AdblockController.java
+index 34ff5e700d..61f3026bc8 100644
+--- a/components/adblock/android/java/src/org/chromium/components/adblock/AdblockController.java
++++ b/components/adblock/android/java/src/org/chromium/components/adblock/AdblockController.java
+@@ -56,7 +56,7 @@ public class AdblockController {
+                 FilteringConfiguration.createConfiguration("adblock", mBrowserContextHandle);
+         try {
+             mAcceptableAds =
+-                    new URL("https://easylist-downloads.adblockplus.org/exceptionrules.txt");
++                    new URL("about:blank");
+         } catch (java.net.MalformedURLException e) {
+             mAcceptableAds = null;
+         }
+@@ -140,6 +140,7 @@ public class AdblockController {
+ 
+     @UiThread
+     public void setAcceptableAdsEnabled(boolean enabled) {
++        enabled = false;
+         if (enabled) mFilteringConfiguration.addFilterList(mAcceptableAds);
+         else mFilteringConfiguration.removeFilterList(mAcceptableAds);
+     }
+@@ -175,6 +176,11 @@ public class AdblockController {
+         mFilteringConfiguration.removeFilterList(url);
+     }
+ 
++    @UiThread
++    public void startUpdate() {
++        AdblockControllerJni.get().startUpdate(mBrowserContextHandle);
++    }
++
+     @UiThread
+     public List<Subscription> getInstalledSubscriptions() {
+         return (List<Subscription>)
+@@ -279,6 +285,8 @@ public class AdblockController {
+ 
+     @NativeMethods
+     interface Natives {
++        void startUpdate(BrowserContextHandle contextHandle);
++
+         Object[] getInstalledSubscriptions(BrowserContextHandle contextHandle);
+ 
+         Object[] getRecommendedSubscriptions();
+diff --git a/components/adblock/content/browser/BUILD.gn b/components/adblock/content/browser/BUILD.gn
+index f562501f90..9106a6b17b 100644
+--- a/components/adblock/content/browser/BUILD.gn
++++ b/components/adblock/content/browser/BUILD.gn
+@@ -18,11 +18,6 @@ import("//components/adblock/features.gni")
+ 
+ config("adblock_content_common_config") {
+   defines = []
+-
+-  if (eyeo_intercept_debug_url) {
+-    print("WARNING! Enabled intercepting eyeo debug domain \"test.data\"")
+-    defines += [ "EYEO_INTERCEPT_DEBUG_URL=1" ]
+-  }
+ }
+ 
+ source_set("browser_impl") {
+@@ -52,12 +47,8 @@ source_set("browser_impl") {
+     "element_hider_impl.h",
+     "eyeo_document_info.cc",
+     "eyeo_document_info.h",
+-    "eyeo_page_info.cc",
+-    "eyeo_page_info.h",
+     "factories/adblock_request_throttle_factory.cc",
+     "factories/adblock_request_throttle_factory.h",
+-    "factories/adblock_telemetry_service_factory.cc",
+-    "factories/adblock_telemetry_service_factory.h",
+     "factories/content_security_policy_injector_factory.cc",
+     "factories/content_security_policy_injector_factory.h",
+     "factories/element_hider_factory.cc",
+@@ -78,8 +69,6 @@ source_set("browser_impl") {
+     "frame_hierarchy_builder.h",
+     "frame_opener_info.cc",
+     "frame_opener_info.h",
+-    "page_view_stats.cc",
+-    "page_view_stats.h",
+     "request_initiator.cc",
+     "request_initiator.h",
+     "resource_classification_runner.h",
+@@ -218,9 +207,5 @@ source_set("browser_tests") {
+     "test/adblock_web_ui_browsertest.cc",
+   ]
+ 
+-  if (eyeo_intercept_debug_url) {
+-    sources += [ "test/adblock_debug_url_browsertest.cc" ]
+-  }
+-
+   deps = [ ":browser_tests_support" ]
+ }
+diff --git a/components/adblock/content/browser/adblock_content_browser_client.h b/components/adblock/content/browser/adblock_content_browser_client.h
+index 62e4a1927d..17b20a7f3d 100644
+--- a/components/adblock/content/browser/adblock_content_browser_client.h
++++ b/components/adblock/content/browser/adblock_content_browser_client.h
+@@ -22,6 +22,9 @@
+ #include "components/adblock/content/browser/adblock_context_data.h"
+ #include "components/adblock/content/browser/adblock_filter_match.h"
+ #include "components/adblock/content/browser/adblock_web_ui_controller_factory.h"
++#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
++#include "chrome/browser/profiles/profile.h"
++#include "components/content_settings/core/browser/host_content_settings_map.h"
+ #include "components/adblock/content/browser/factories/resource_classification_runner_factory.h"
+ #include "components/adblock/content/browser/factories/subscription_service_factory.h"
+ #include "components/adblock/content/browser/request_initiator.h"
+@@ -108,7 +111,8 @@ class AdblockContentBrowserClient : public ContentBrowserClientBase {
+       mojo::BinderMapWithContext<content::RenderFrameHost*>* map) override;
+ 
+  protected:
+-  static bool IsFilteringNeeded(content::BrowserContext* browser_context);
++  static bool IsFilteringNeeded(content::RenderFrameHost* frame);
++  static bool IsFilteringNeeded(Profile* profile, const GURL& embedder_url);
+ 
+   // current_browser_context is the BrowserContext relevant for the currently
+   // processed request. It might be an off-the-record browser context. This
+@@ -160,7 +164,7 @@ void AdblockContentBrowserClient<
+ template <class ContentBrowserClientBase>
+ bool AdblockContentBrowserClient<ContentBrowserClientBase>::
+     WillInterceptWebSocket(content::RenderFrameHost* frame) {
+-  if (frame && IsFilteringNeeded(GetBrowserContext(frame))) {
++  if (frame && IsFilteringNeeded(frame)) {
+     return true;
+   }
+   return ContentBrowserClientBase::WillInterceptWebSocket(frame);
+@@ -175,7 +179,7 @@ void AdblockContentBrowserClient<ContentBrowserClientBase>::CreateWebSocket(
+     const absl::optional<std::string>& user_agent,
+     mojo::PendingRemote<network::mojom::WebSocketHandshakeClient>
+         handshake_client) {
+-  if (frame && IsFilteringNeeded(GetBrowserContext(frame))) {
++  if (frame && IsFilteringNeeded(frame)) {
+     auto* subscription_service =
+         adblock::SubscriptionServiceFactory::GetForBrowserContext(
+             GetBrowserContext(frame));
+@@ -237,6 +241,7 @@ void AdblockContentBrowserClient<ContentBrowserClientBase>::
+       isolation_info, navigation_id, ukm_source_id, factory_builder,
+       header_client, bypass_redirect_checks, disable_secure_dns,
+       factory_override, navigation_response_task_runner);
++  auto* profile = Profile::FromBrowserContext(browser_context);
+ 
+ #if BUILDFLAG(ENABLE_EXTENSIONS)
+   if (!force_adblock_proxy_for_testing_ &&
+@@ -250,15 +255,9 @@ void AdblockContentBrowserClient<ContentBrowserClientBase>::
+   auto* eyeo_browser_context =
+       GetBrowserContextForEyeoFactories(browser_context);
+   bool use_adblock_proxy =
+-      (type == content::ContentBrowserClient::URLLoaderFactoryType::
+-                   kDocumentSubResource ||
+-       type ==
+-           content::ContentBrowserClient::URLLoaderFactoryType::kNavigation ||
+-       type == content::ContentBrowserClient::URLLoaderFactoryType::
+-                   kServiceWorkerSubResource ||
+-       type == content::ContentBrowserClient::URLLoaderFactoryType::
+-                   kServiceWorkerScript) &&
+-      IsFilteringNeeded(eyeo_browser_context);
++      type != content::ContentBrowserClient::URLLoaderFactoryType::kDownload &&
++      (frame ? IsFilteringNeeded(frame)
++             : IsFilteringNeeded(profile, request_initiator.GetURL().GetAsReferrer()));
+ 
+   bool use_test_loader = false;
+ #ifdef EYEO_INTERCEPT_DEBUG_URL
+@@ -324,16 +323,47 @@ void AdblockContentBrowserClient<ContentBrowserClientBase>::
+   VLOG(1) << "[eyeo] Web socket blocked for " << url;
+ }
+ 
++//static
++template <class ContentBrowserClientBase>
++bool AdblockContentBrowserClient<ContentBrowserClientBase>::IsFilteringNeeded(Profile* profile, const GURL& embedder_url) {
++  DCHECK(profile);
++
++  if(embedder_url.is_empty()) {
++    // in android can be empty because it was created by
++    // RenderFrameHostImpl::CreateSubresourceLoaderFactoriesForInitialEmptyDocument
++    return true;
++  }
++
++  if (embedder_url.SchemeIs(content_settings::kChromeUIScheme)) {
++    return false;
++  }
++
++  HostContentSettingsMap* settings_map = HostContentSettingsMapFactory::GetForProfile(profile);
++  if (settings_map && settings_map->GetContentSetting(embedder_url, GURL(), ContentSettingsType::ADS)
++        == CONTENT_SETTING_ALLOW) {
++      return false;
++  }
++  // Filtering may be needed if there's at least one enabled
++  // FilteringConfiguration.
++  bool ret = base::ranges::any_of(
++      adblock::SubscriptionServiceFactory::GetForBrowserContext(profile)
++          ->GetInstalledFilteringConfigurations(),
++      &adblock::FilteringConfiguration::IsEnabled);
++  return ret;
++}
++
+ // static
+ template <class ContentBrowserClientBase>
+ bool AdblockContentBrowserClient<ContentBrowserClientBase>::IsFilteringNeeded(
+-    content::BrowserContext* browser_context) {
+-  if (browser_context) {
+-    return base::ranges::any_of(
+-        adblock::SubscriptionServiceFactory::GetForBrowserContext(
+-            browser_context)
+-            ->GetInstalledFilteringConfigurations(),
+-        &adblock::FilteringConfiguration::IsEnabled);
++    content::RenderFrameHost* frame) {
++  if (frame) {
++     auto* profile =
++         Profile::FromBrowserContext(frame->GetProcess()->GetBrowserContext());
++     if (profile) {
++       content::RenderFrameHost* embedder = frame->GetOutermostMainFrameOrEmbedder();
++       const auto& embedder_url = embedder->GetLastCommittedURL();
++       return IsFilteringNeeded(profile, embedder_url);
++     }
+   }
+   return false;
+ }
+diff --git a/components/adblock/content/browser/adblock_internals_page_handler.cc b/components/adblock/content/browser/adblock_internals_page_handler.cc
+index 031c27b0a9..e36e7378f0 100644
+--- a/components/adblock/content/browser/adblock_internals_page_handler.cc
++++ b/components/adblock/content/browser/adblock_internals_page_handler.cc
+@@ -19,10 +19,8 @@
+ 
+ #include "base/i18n/time_formatting.h"
+ #include "base/strings/utf_string_conversions.h"
+-#include "components/adblock/content/browser/factories/adblock_telemetry_service_factory.h"
+ #include "components/adblock/content/browser/factories/session_stats_factory.h"
+ #include "components/adblock/content/browser/factories/subscription_service_factory.h"
+-#include "components/adblock/core/adblock_telemetry_service.h"
+ #include "components/adblock/core/common/adblock_constants.h"
+ #include "components/adblock/core/session_stats.h"
+ #include "components/adblock/core/subscription/subscription_config.h"
+@@ -121,11 +119,7 @@ void AdblockInternalsPageHandler::GetDebugInfo(GetDebugInfoCallback callback) {
+     content += DebugLine("Total blocked", blocked[CustomFiltersUrl()], 3);
+   }
+ 
+-  auto* telemetry_service =
+-      adblock::AdblockTelemetryServiceFactory::GetForBrowserContext(context_);
+-  telemetry_service->GetTopicProvidersDebugInfo(base::BindOnce(
+-      &AdblockInternalsPageHandler::OnTelemetryServiceInfoArrived,
+-      std::move(callback), std::move(content)));
++  std::move(callback).Run(std::move(content));
+ }
+ 
+ void AdblockInternalsPageHandler::ToggleTestpagesFLSubscription(
+@@ -148,17 +142,6 @@ void AdblockInternalsPageHandler::IsSubscribedToTestpagesFL(
+   std::move(callback).Run(IsSubscribedToTestpagesFL());
+ }
+ 
+-void AdblockInternalsPageHandler::OnTelemetryServiceInfoArrived(
+-    GetDebugInfoCallback callback,
+-    std::string content,
+-    std::vector<std::string> topic_provider_content) {
+-  for (auto& topic_provider_debug_info : topic_provider_content) {
+-    content +=
+-        DebugLine("Eyeometry topic provider", topic_provider_debug_info, 0);
+-  }
+-  std::move(callback).Run(std::move(content));
+-}
+-
+ bool AdblockInternalsPageHandler::IsSubscribedToTestpagesFL() const {
+   auto* adblock_configuration =
+       adblock::SubscriptionServiceFactory::GetForBrowserContext(context_)
+diff --git a/components/adblock/content/browser/adblock_internals_page_handler.h b/components/adblock/content/browser/adblock_internals_page_handler.h
+index 11578fe88e..a9490b155f 100644
+--- a/components/adblock/content/browser/adblock_internals_page_handler.h
++++ b/components/adblock/content/browser/adblock_internals_page_handler.h
+@@ -45,10 +45,6 @@ class AdblockInternalsPageHandler
+       IsSubscribedToTestpagesFLCallback callback) override;
+ 
+  private:
+-  static void OnTelemetryServiceInfoArrived(
+-      GetDebugInfoCallback callback,
+-      std::string content,
+-      std::vector<std::string> topic_provider_content);
+   bool IsSubscribedToTestpagesFL() const;
+ 
+   raw_ptr<content::BrowserContext> context_;
+diff --git a/components/adblock/content/browser/adblock_url_loader_factory.cc b/components/adblock/content/browser/adblock_url_loader_factory.cc
+index 2b79dcfb76..057d4e172c 100644
+--- a/components/adblock/content/browser/adblock_url_loader_factory.cc
++++ b/components/adblock/content/browser/adblock_url_loader_factory.cc
+@@ -24,7 +24,6 @@
+ #include "components/adblock/content/browser/element_hider.h"
+ #include "components/adblock/content/browser/eyeo_document_info.h"
+ #include "components/adblock/content/browser/frame_opener_info.h"
+-#include "components/adblock/content/browser/page_view_stats.h"
+ #include "components/adblock/content/browser/request_initiator.h"
+ #include "components/adblock/content/browser/resource_classification_runner.h"
+ #include "components/adblock/core/common/adblock_utils.h"
+@@ -138,15 +137,6 @@ bool IsPopup(const RequestInitiator& initiator) {
+   return info && content::RenderFrameHost::FromID(info->GetOpener());
+ }
+ 
+-// We recognize Acceptable Ads Blockthrough filter(s) hit on a page by the fact
+-// that url btloader.com/recovery?w={{websiteID}} is loaded. We relax here check
+-// to allow any port to make this code working with our browser tests which run
+-// a custom http(s)s server.
+-bool AcceptableAdsBlockthroughFiltersHitDetected(const GURL& request_url) {
+-  return request_url.host() == "btloader.com" &&
+-         base::StartsWith(request_url.path(), "/recovery");
+-}
+-
+ }  // namespace
+ 
+ class AdblockURLLoaderFactory::InProgressRequest
+@@ -253,8 +243,6 @@ class AdblockURLLoaderFactory::InProgressRequest
+   // |target_client_|.
+   mojo::Remote<network::mojom::URLLoaderClient> target_client_;
+   mojo::Receiver<network::mojom::URLLoader> loader_receiver_;
+-  base::RepeatingCallback<void(content::RenderFrameHost*)>
+-      aa_bt_page_view_counter_;
+   // These are the mojo pipe endpoints between this proxy and the network
+   // process. Messages received by |loader_receiver_| are forwarded to
+   // |target_loader_|.
+@@ -278,8 +266,7 @@ AdblockURLLoaderFactory::InProgressRequest::InProgressRequest(
+       adblock_resource_type_(ToAdblockResourceType(request)),
+       factory_(factory),
+       target_client_(std::move(client)),
+-      loader_receiver_(this, std::move(loader_receiver)),
+-      aa_bt_page_view_counter_(CountAcceptableAdsBlockthrougCallback()) {
++      loader_receiver_(this, std::move(loader_receiver)) {
+   if (!is_document_request_ && !utils::ShouldIgnoreRequest(request_url_)) {
+     // Subresource requests may be rewritten (redirected to a local resource).
+     // Check this before sending the request to the network process.
+@@ -287,10 +274,6 @@ AdblockURLLoaderFactory::InProgressRequest::InProgressRequest(
+         &InProgressRequest::Start, weak_factory_.GetWeakPtr(), options, request,
+         traffic_annotation, target_loader_.BindNewPipeAndPassReceiver(),
+         client_receiver_.BindNewPipeAndPassRemote()));
+-    if (AcceptableAdsBlockthroughFiltersHitDetected(request_url_)) {
+-      aa_bt_page_view_counter_.Run(
+-          factory_->request_initiator_.GetRenderFrameHost());
+-    }
+   } else {
+     // Main frame navigation requests are never rewritten, start immediately.
+     Start(options, request, traffic_annotation,
+diff --git a/components/adblock/content/browser/adblock_webcontents_observer.cc b/components/adblock/content/browser/adblock_webcontents_observer.cc
+index a6e708e2b4..cb144e60c7 100644
+--- a/components/adblock/content/browser/adblock_webcontents_observer.cc
++++ b/components/adblock/content/browser/adblock_webcontents_observer.cc
+@@ -67,6 +67,16 @@ void TraceHandleLoadComplete(
+                                   TRACE_ID_LOCAL(rfh_trace_id));
+ }
+ 
++bool IsFilteringNeeded(content::RenderFrameHost* frame, HostContentSettingsMap* settings_map) {
++  content::RenderFrameHost* embedder = frame->GetOutermostMainFrameOrEmbedder();
++  const auto& embedder_url = embedder->GetLastCommittedURL();
++  if (settings_map->GetContentSetting(embedder_url, GURL(), ContentSettingsType::ADS)
++        == CONTENT_SETTING_ALLOW) {
++      return false;
++  }
++  return true;
++}
++
+ bool IsOrdinaryNavigation(content::NavigationHandle* navigation_handle) {
+   const GURL& url = navigation_handle->GetURL();
+   return !navigation_handle->IsErrorPage() && !url.IsAboutBlank() &&
+@@ -90,14 +100,14 @@ AdblockWebContentObserver::AdblockWebContentObserver(
+     ElementHider* element_hider,
+     SitekeyStorage* sitekey_storage,
+     std::unique_ptr<FrameHierarchyBuilder> frame_hierarchy_builder,
+-    base::RepeatingCallback<void(content::RenderFrameHost*)> navigation_counter)
++    HostContentSettingsMap* settings_map)
+     : content::WebContentsObserver(web_contents),
+       content::WebContentsUserData<AdblockWebContentObserver>(*web_contents),
+       subscription_service_(subscription_service),
+       element_hider_(element_hider),
+       sitekey_storage_(sitekey_storage),
+       frame_hierarchy_builder_(std::move(frame_hierarchy_builder)),
+-      navigation_counter_(std::move(navigation_counter)) {}
++      settings_map_(settings_map) {}
+ 
+ AdblockWebContentObserver::~AdblockWebContentObserver() = default;
+ 
+@@ -145,6 +155,9 @@ void AdblockWebContentObserver::DidFinishNavigation(
+   if (!frame) {
+     return;
+   }
++  if (!IsFilteringNeeded(navigation_handle->GetRenderFrameHost(), settings_map_)) {
++    return;
++  }
+   if (utils::ShouldSkipElementHiding(url)) {
+     VLOG(1) << "[eyeo] Unsupported scheme, skipping injection.";
+     return;
+@@ -165,11 +178,6 @@ void AdblockWebContentObserver::DidFinishNavigation(
+                << ", isAboutSrcDoc = " << url.IsAboutSrcdoc();
+       element_hider_->HideBlockedElement(url, frame->GetParent());
+     }
+-  } else {
+-    // Count navigation for AA stats.
+-    if (navigation_handle->IsInMainFrame()) {
+-      navigation_counter_.Run(frame);
+-    }
+   }
+ }
+ 
+diff --git a/components/adblock/content/browser/adblock_webcontents_observer.h b/components/adblock/content/browser/adblock_webcontents_observer.h
+index 93babc61dc..1db36c93f1 100644
+--- a/components/adblock/content/browser/adblock_webcontents_observer.h
++++ b/components/adblock/content/browser/adblock_webcontents_observer.h
+@@ -23,6 +23,7 @@
+ #include "components/adblock/content/browser/frame_hierarchy_builder.h"
+ #include "components/adblock/core/sitekey_storage.h"
+ #include "components/adblock/core/subscription/subscription_service.h"
++#include "components/content_settings/core/browser/host_content_settings_map.h"
+ #include "content/public/browser/web_contents.h"
+ #include "content/public/browser/web_contents_observer.h"
+ #include "content/public/browser/web_contents_user_data.h"
+@@ -52,8 +53,7 @@ class AdblockWebContentObserver
+       ElementHider* element_hider,
+       SitekeyStorage* sitekey_storage,
+       std::unique_ptr<FrameHierarchyBuilder> frame_hierarchy_builder,
+-      base::RepeatingCallback<void(content::RenderFrameHost*)>
+-          navigation_counter);
++      HostContentSettingsMap* settings_map);
+   ~AdblockWebContentObserver() override;
+   AdblockWebContentObserver(const AdblockWebContentObserver&) = delete;
+   AdblockWebContentObserver& operator=(const AdblockWebContentObserver&) =
+@@ -85,7 +85,8 @@ class AdblockWebContentObserver
+   raw_ptr<SitekeyStorage> sitekey_storage_;
+ 
+   std::unique_ptr<FrameHierarchyBuilder> frame_hierarchy_builder_;
+-  base::RepeatingCallback<void(content::RenderFrameHost*)> navigation_counter_;
++
++  raw_ptr<HostContentSettingsMap> settings_map_ = nullptr;
+ };
+ 
+ }  // namespace adblock
+diff --git a/components/adblock/content/browser/eyeo_page_info.cc b/components/adblock/content/browser/eyeo_page_info.cc
+deleted file mode 100644
+index 169b6f3388..0000000000
+--- a/components/adblock/content/browser/eyeo_page_info.cc
++++ /dev/null
+@@ -1,38 +0,0 @@
+-/*
+- * This file is part of eyeo Chromium SDK,
+- * Copyright (C) 2006-present eyeo GmbH
+- *
+- * eyeo Chromium SDK is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 3 as
+- * published by the Free Software Foundation.
+- *
+- * eyeo Chromium SDK is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-#include "components/adblock/content/browser/eyeo_page_info.h"
+-
+-namespace adblock {
+-
+-PAGE_USER_DATA_KEY_IMPL(EyeoPageInfo);
+-
+-EyeoPageInfo::EyeoPageInfo(content::Page& page)
+-    : content::PageUserData<EyeoPageInfo>(page) {}
+-
+-EyeoPageInfo::~EyeoPageInfo() = default;
+-
+-bool EyeoPageInfo::SetMatchedPageView(PageViewStats::Metric metric) {
+-  auto result = page_views_.insert(metric);
+-  return result.second;
+-}
+-
+-bool EyeoPageInfo::HasMatchedPageView(PageViewStats::Metric metric) {
+-  return page_views_.count(metric);
+-}
+-
+-}  // namespace adblock
+diff --git a/components/adblock/content/browser/eyeo_page_info.h b/components/adblock/content/browser/eyeo_page_info.h
+deleted file mode 100644
+index 6787ab3ddd..0000000000
+--- a/components/adblock/content/browser/eyeo_page_info.h
++++ /dev/null
+@@ -1,53 +0,0 @@
+-/*
+- * This file is part of eyeo Chromium SDK,
+- * Copyright (C) 2006-present eyeo GmbH
+- *
+- * eyeo Chromium SDK is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 3 as
+- * published by the Free Software Foundation.
+- *
+- * eyeo Chromium SDK is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-#ifndef COMPONENTS_ADBLOCK_CONTENT_BROWSER_EYEO_PAGE_INFO_H_
+-#define COMPONENTS_ADBLOCK_CONTENT_BROWSER_EYEO_PAGE_INFO_H_
+-
+-#include <set>
+-
+-#include "components/adblock/content/browser/page_view_stats.h"
+-#include "content/public/browser/page.h"
+-#include "content/public/browser/page_user_data.h"
+-#include "url/gurl.h"
+-
+-namespace adblock {
+-
+-class EyeoPageInfo final : public content::PageUserData<EyeoPageInfo> {
+- public:
+-  ~EyeoPageInfo() final;
+-
+-  // Marks that document has matched specified page view metric.
+-  // |key| is a base::PersistentHash() of a metric name.
+-  // Returns true if |key| was not yet stored for this document.
+-  bool SetMatchedPageView(PageViewStats::Metric metric);
+-
+-  // Checks whether |key| is already stored.
+-  bool HasMatchedPageView(PageViewStats::Metric metric);
+-
+- private:
+-  explicit EyeoPageInfo(content::Page& page);
+-
+-  std::set<PageViewStats::Metric> page_views_ = {};
+-
+-  friend PageUserData;
+-  PAGE_USER_DATA_KEY_DECL();
+-};
+-
+-}  // namespace adblock
+-
+-#endif  // COMPONENTS_ADBLOCK_CONTENT_BROWSER_EYEO_PAGE_INFO_H_
+diff --git a/components/adblock/content/browser/factories/embedding_utils.cc b/components/adblock/content/browser/factories/embedding_utils.cc
+index 8b514aa9bf..35fc283ac7 100644
+--- a/components/adblock/content/browser/factories/embedding_utils.cc
++++ b/components/adblock/content/browser/factories/embedding_utils.cc
+@@ -20,7 +20,6 @@
+ #include <memory>
+ 
+ #include "components/adblock/content/browser/adblock_webcontents_observer.h"
+-#include "components/adblock/content/browser/factories/adblock_telemetry_service_factory.h"
+ #include "components/adblock/content/browser/factories/content_security_policy_injector_factory.h"
+ #include "components/adblock/content/browser/factories/element_hider_factory.h"
+ #include "components/adblock/content/browser/factories/resource_classification_runner_factory.h"
+@@ -34,7 +33,6 @@ namespace adblock {
+ 
+ void EnsureBackgroundServicesStarted(content::BrowserContext* browser_context) {
+   ResourceClassificationRunnerFactory::GetForBrowserContext(browser_context);
+-  AdblockTelemetryServiceFactory::GetForBrowserContext(browser_context);
+   SessionStatsFactory::GetForBrowserContext(browser_context);
+   SitekeyStorageFactory::GetForBrowserContext(browser_context);
+ }
+diff --git a/components/adblock/content/browser/factories/embedding_utils.h b/components/adblock/content/browser/factories/embedding_utils.h
+index 436fc54ba1..80222da8c8 100644
+--- a/components/adblock/content/browser/factories/embedding_utils.h
++++ b/components/adblock/content/browser/factories/embedding_utils.h
+@@ -18,13 +18,14 @@
+ #ifndef COMPONENTS_ADBLOCK_CONTENT_BROWSER_FACTORIES_EMBEDDING_UTILS_H_
+ #define COMPONENTS_ADBLOCK_CONTENT_BROWSER_FACTORIES_EMBEDDING_UTILS_H_
+ 
++#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
+ #include "components/adblock/content/browser/factories/element_hider_factory.h"
+ #include "components/adblock/content/browser/factories/sitekey_storage_factory.h"
+ #include "components/adblock/content/browser/factories/subscription_service_factory.h"
+ #include "components/adblock/content/browser/frame_hierarchy_builder.h"
+-#include "components/adblock/content/browser/page_view_stats.h"
+ #include "content/public/browser/browser_context.h"
+ #include "content/public/browser/web_contents.h"
++#include "chrome/browser/profiles/profile.h"
+ 
+ namespace adblock {
+ 
+@@ -33,12 +34,14 @@ template <typename ObserverClass>
+ void RegisterAdblockWebContentObserver(
+     content::WebContents* web_contents,
+     content::BrowserContext* browser_context) {
++  auto* profile = Profile::FromBrowserContext(browser_context);
+   ObserverClass::CreateForWebContents(
+       web_contents,
+       SubscriptionServiceFactory::GetForBrowserContext(browser_context),
+       ElementHiderFactory::GetForBrowserContext(browser_context),
+       SitekeyStorageFactory::GetForBrowserContext(browser_context),
+-      std::make_unique<FrameHierarchyBuilder>(), CountNavigationsCallback());
++      std::make_unique<FrameHierarchyBuilder>(),
++      HostContentSettingsMapFactory::GetForProfile(profile));
+ }
+ 
+ // Ensures that all background services are started for the given browser
+diff --git a/components/adblock/content/browser/factories/subscription_service_factory.cc b/components/adblock/content/browser/factories/subscription_service_factory.cc
+index 077440cf09..7de2bb16f3 100644
+--- a/components/adblock/content/browser/factories/subscription_service_factory.cc
++++ b/components/adblock/content/browser/factories/subscription_service_factory.cc
+@@ -222,7 +222,7 @@ void CheckAndRunFirstRunLogic(
+     if (IsEyeoFilteringDisabledByDefault()) {
+       adblock_filtering_configuration->SetEnabled(false);
+     }
+-    if (IsAcceptableAdsDisabledByDefault()) {
++    if ((true)) {
+       adblock_filtering_configuration->RemoveFilterList(AcceptableAdsUrl());
+     }
+     prefs->SetBoolean(common::prefs::kInstallFirstStartSubscriptions, false);
+diff --git a/components/adblock/content/browser/page_view_stats.cc b/components/adblock/content/browser/page_view_stats.cc
+deleted file mode 100644
+index 7ff7b9589a..0000000000
+--- a/components/adblock/content/browser/page_view_stats.cc
++++ /dev/null
+@@ -1,291 +0,0 @@
+-/*
+- * This file is part of eyeo Chromium SDK,
+- * Copyright (C) 2006-present eyeo GmbH
+- *
+- * eyeo Chromium SDK is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 3 as
+- * published by the Free Software Foundation.
+- *
+- * eyeo Chromium SDK is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-#include "components/adblock/content/browser/page_view_stats.h"
+-
+-#include "base/memory/weak_ptr.h"
+-#include "base/values.h"
+-#include "components/adblock/content/browser/eyeo_page_info.h"
+-#include "components/adblock/content/browser/factories/subscription_service_factory.h"
+-#include "components/adblock/core/common/adblock_constants.h"
+-#include "components/adblock/core/common/adblock_prefs.h"
+-#include "components/adblock/core/subscription/subscription_config.h"
+-#include "components/prefs/scoped_user_pref_update.h"
+-#include "content/public/browser/browser_thread.h"
+-
+-namespace adblock {
+-namespace {
+-
+-// The key name for the kTelemetryPageViewStats dict for storing the number of
+-// Acceptable Ads page views.
+-const char kAcceptableAdsStatsCountKey[] = "aa_pageviews";
+-
+-// The key name for the kTelemetryPageViewStats dict for storing the number of
+-// Acceptable Ads page views for Blockhthrough specific allowlisting filters.
+-// We recognize this case by seeing that page loads script from url
+-// https://btloader.com/recovery?w={{page_id}}&upapi=true which is requested by
+-// a page only when AA and Easylist are on. And to get notification about this
+-// script being loaded we add a fake blocking filter (the asterisk is for our
+-// browser tests which are using custom port)
+-// `|https://btloader.com*/recovery?w=` which is overruled by another fake
+-// allowing filter `@@|https://btloader.com*/recovery?w=`.
+-const char kAcceptableAdsBlockthroughStatsCountKey[] = "aa_bt_pageviews";
+-
+-// The key name for the kTelemetryPageViewStats dict for storing the number of
+-// allowing filter page views.
+-const char kAllowedStatsCountKey[] = "allowed_pageviews";
+-
+-// The key name for the kTelemetryPageViewStats dict for storing the number of
+-// blocking filter page views.
+-const char kBlockedStatsCountKey[] = "blocked_pageviews";
+-
+-// This stores the total number of all page views (finished navigations) rather
+-// than AA page views.
+-const char kTotalPagesStatsCountKey[] = "pageviews";
+-
+-std::string_view GetReportedNameForMetric(PageViewStats::Metric metric) {
+-  switch (metric) {
+-    case PageViewStats::Metric::AcceptableAds:
+-      return kAcceptableAdsStatsCountKey;
+-    case PageViewStats::Metric::AcceptableAdsBlockThrough:
+-      return kAcceptableAdsBlockthroughStatsCountKey;
+-    case PageViewStats::Metric::Allowing:
+-      return kAllowedStatsCountKey;
+-    case PageViewStats::Metric::Blocking:
+-      return kBlockedStatsCountKey;
+-    case PageViewStats::Metric::TotalPages:
+-      return kTotalPagesStatsCountKey;
+-  }
+-}
+-
+-base::WeakPtr<PageViewStats> g_last_used_instance;
+-
+-void RegisterNavigationWithLastUsedPageViewStats(
+-    content::RenderFrameHost* render_frame_host) {
+-  if (g_last_used_instance) {
+-    g_last_used_instance->RegisterMainFrameNavigation(render_frame_host);
+-  }
+-}
+-
+-void RegisterAcceptableAdsBlockthroughtHitWithLastUsedPageViewStats(
+-    content::RenderFrameHost* render_frame_host) {
+-  if (g_last_used_instance) {
+-    g_last_used_instance->RegisterAcceptableAdsBlockthroughtHit(
+-        render_frame_host);
+-  }
+-}
+-
+-inline bool WasNavigationCommitted(PageViewStats::Metric metric,
+-                                   EyeoPageInfo* page_info) {
+-  return page_info->HasMatchedPageView(PageViewStats::Metric::TotalPages);
+-}
+-
+-inline bool IsNavigationCommittingNow(PageViewStats::Metric metric) {
+-  return metric == PageViewStats::Metric::TotalPages;
+-}
+-
+-}  // namespace
+-
+-PageViewStats::PageViewStats(
+-    ResourceClassificationRunner* classification_runner,
+-    PrefService* prefs)
+-    : classification_runner_(classification_runner), prefs_(prefs) {
+-  DCHECK(classification_runner_);
+-  DCHECK(prefs_);
+-  classification_runner_->AddObserver(this);
+-  g_last_used_instance = weak_factory_.GetWeakPtr();
+-}
+-
+-PageViewStats::~PageViewStats() {
+-  classification_runner_->RemoveObserver(this);
+-}
+-
+-void PageViewStats::OnRequestMatched(
+-    const GURL& url,
+-    FilterMatchResult match_result,
+-    const std::vector<GURL>& parent_frame_urls,
+-    ContentType content_type,
+-    content::RenderFrameHost* render_frame_host,
+-    const GURL& subscription,
+-    const std::string& configuration_name) {
+-  OnMatchedInternal(url, match_result, content_type, render_frame_host,
+-                    subscription);
+-}
+-
+-void PageViewStats::OnPopupMatched(const GURL& url,
+-                                   FilterMatchResult match_result,
+-                                   const GURL& opener_url,
+-                                   content::RenderFrameHost* render_frame_host,
+-                                   const GURL& subscription,
+-                                   const std::string& configuration_name) {
+-  OnMatchedInternal(url, match_result, ContentType::Other, render_frame_host,
+-                    subscription);
+-}
+-
+-void PageViewStats::OnMatchedInternal(
+-    const GURL& url,
+-    FilterMatchResult match_result,
+-    ContentType content_type,
+-    content::RenderFrameHost* render_frame_host,
+-    const GURL& subscription) {
+-  if (render_frame_host == nullptr) {
+-    return;
+-  }
+-
+-  if (match_result == FilterMatchResult::kAllowRule) {
+-    if (subscription == AcceptableAdsUrl()) {
+-      RecordPageView(render_frame_host->GetPage(), Metric::AcceptableAds);
+-    }
+-    // We increment general (any) allowlisting metric despite incrementing
+-    // specific, AA related metrics.
+-    RecordPageView(render_frame_host->GetPage(), Metric::Allowing);
+-  } else {
+-    DCHECK(match_result == FilterMatchResult::kBlockRule);
+-    RecordPageView(render_frame_host->GetPage(), Metric::Blocking);
+-  }
+-}
+-
+-base::Value::Dict PageViewStats::GetPayload() const {
+-  base::Value::Dict payload;
+-  payload.Set(kAcceptableAdsStatsCountKey,
+-              GetPageViewsCount(Metric::AcceptableAds));
+-  payload.Set(kAcceptableAdsBlockthroughStatsCountKey,
+-              GetPageViewsCount(Metric::AcceptableAdsBlockThrough));
+-  payload.Set(kAllowedStatsCountKey, GetPageViewsCount(Metric::Allowing));
+-  payload.Set(kBlockedStatsCountKey, GetPageViewsCount(Metric::Blocking));
+-  payload.Set(kTotalPagesStatsCountKey, GetPageViewsCount(Metric::TotalPages));
+-  return payload;
+-}
+-
+-void PageViewStats::ResetStats() {
+-  ResetPageViewsCount(Metric::AcceptableAds);
+-  ResetPageViewsCount(Metric::AcceptableAdsBlockThrough);
+-  ResetPageViewsCount(Metric::Allowing);
+-  ResetPageViewsCount(Metric::Blocking);
+-  ResetPageViewsCount(Metric::TotalPages);
+-}
+-
+-void PageViewStats::RegisterMainFrameNavigation(
+-    content::RenderFrameHost* render_frame_host) {
+-  if (render_frame_host == nullptr) {
+-    return;
+-  }
+-
+-  RecordPageView(render_frame_host->GetPage(), Metric::TotalPages);
+-}
+-
+-void PageViewStats::RegisterAcceptableAdsBlockthroughtHit(
+-    content::RenderFrameHost* render_frame_host) {
+-  if (render_frame_host == nullptr) {
+-    return;
+-  }
+-
+-  RecordPageView(render_frame_host->GetPage(),
+-                 Metric::AcceptableAdsBlockThrough);
+-}
+-
+-void PageViewStats::ParkMetric(content::Page& page, Metric metric) {
+-  auto main_frame_id = page.GetMainDocument().GetGlobalId();
+-  parked_metrics_before_main_navigation_[main_frame_id].insert(metric);
+-}
+-
+-void PageViewStats::RecordParkedMetrics(content::Page& page) {
+-  auto main_frame_id = page.GetMainDocument().GetGlobalId();
+-  for (auto it = parked_metrics_before_main_navigation_.cbegin();
+-       it != parked_metrics_before_main_navigation_.cend();) {
+-    auto* rfh = content::RenderFrameHost::FromID(it->first);
+-    // Check if the parked entry represents a dead RFH, if so erase it
+-    if (!rfh) {
+-      it = parked_metrics_before_main_navigation_.erase(it);
+-      continue;
+-    }
+-    // If this is the entry matching Page we are looking for...
+-    if (main_frame_id == it->first) {
+-      // ...and it contains some parked metrics...
+-      if (!it->second.empty()) {
+-        //...then record them
+-        auto* page_info = EyeoPageInfo::GetOrCreateForPage(page);
+-        ScopedDictPrefUpdate update(prefs_,
+-                                    common::prefs::kTelemetryPageViewStats);
+-        for (auto parked_metric : it->second) {
+-          auto parked_metric_key = GetReportedNameForMetric(parked_metric);
+-          const auto current_count_for_parked =
+-              update->FindInt(parked_metric_key);
+-          update->Set(parked_metric_key,
+-                      current_count_for_parked.value_or(0) + 1);
+-          // Now with "final" EyeoPageInfo we can mark metric as recorded
+-          page_info->SetMatchedPageView(parked_metric);
+-        }
+-      }
+-      it = parked_metrics_before_main_navigation_.erase(it);
+-    } else {
+-      ++it;
+-    }
+-  }
+-}
+-
+-void PageViewStats::RecordPageView(content::Page& page, Metric metric) {
+-  auto dict_child_key = GetReportedNameForMetric(metric);
+-  auto* page_info = EyeoPageInfo::GetOrCreateForPage(page);
+-  if (!IsNavigationCommittingNow(metric) &&
+-      !WasNavigationCommitted(metric, page_info)) {
+-    ParkMetric(page, metric);
+-    return;
+-  }
+-  // We don't count stats metrics for individual requests but for a whole page.
+-  // If this is the first request matched a metric for this page, we increment
+-  // the counter. We store previous matches in EyeoPageInfo, so we can check if
+-  // this is the first metric match for this page.
+-  if (!page_info->SetMatchedPageView(metric)) {
+-    // metric was already counted
+-    return;
+-  }
+-  ScopedDictPrefUpdate update(prefs_, common::prefs::kTelemetryPageViewStats);
+-  const auto current_count = update->FindInt(dict_child_key);
+-  update->Set(dict_child_key, current_count.value_or(0) + 1);
+-  // Check parked metrics and record
+-  if (WasNavigationCommitted(metric, page_info)) {
+-    RecordParkedMetrics(page);
+-  }
+-}
+-
+-int PageViewStats::GetPageViewsCount(Metric metric) const {
+-  auto dict_child_key = GetReportedNameForMetric(metric);
+-  const base::Value::Dict& dict =
+-      prefs_->GetDict(common::prefs::kTelemetryPageViewStats);
+-  const auto current_count = dict.FindInt(dict_child_key);
+-  return current_count.value_or(0);
+-}
+-
+-void PageViewStats::ResetPageViewsCount(Metric metric) {
+-  auto dict_child_key = GetReportedNameForMetric(metric);
+-  ScopedDictPrefUpdate update(prefs_, common::prefs::kTelemetryPageViewStats);
+-  update->Set(dict_child_key, 0);
+-}
+-
+-base::RepeatingCallback<void(content::RenderFrameHost*)>
+-CountNavigationsCallback() {
+-  return base::BindRepeating(&RegisterNavigationWithLastUsedPageViewStats);
+-}
+-
+-base::RepeatingCallback<void(content::RenderFrameHost*)>
+-CountAcceptableAdsBlockthrougCallback() {
+-  return base::BindRepeating(
+-      &RegisterAcceptableAdsBlockthroughtHitWithLastUsedPageViewStats);
+-}
+-
+-}  // namespace adblock
+diff --git a/components/adblock/content/browser/page_view_stats.h b/components/adblock/content/browser/page_view_stats.h
+deleted file mode 100644
+index c9db3d6c81..0000000000
+--- a/components/adblock/content/browser/page_view_stats.h
++++ /dev/null
+@@ -1,131 +0,0 @@
+-/*
+- * This file is part of eyeo Chromium SDK,
+- * Copyright (C) 2006-present eyeo GmbH
+- *
+- * eyeo Chromium SDK is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 3 as
+- * published by the Free Software Foundation.
+- *
+- * eyeo Chromium SDK is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-#ifndef COMPONENTS_ADBLOCK_CONTENT_BROWSER_PAGE_VIEW_STATS_H_
+-#define COMPONENTS_ADBLOCK_CONTENT_BROWSER_PAGE_VIEW_STATS_H_
+-
+-#include "base/functional/callback_forward.h"
+-#include "base/memory/raw_ptr.h"
+-#include "base/memory/weak_ptr.h"
+-#include "base/sequence_checker.h"
+-#include "components/adblock/content/browser/resource_classification_runner.h"
+-#include "components/adblock/core/activeping_telemetry_topic_provider.h"
+-#include "components/prefs/pref_service.h"
+-#include "content/public/browser/browser_context.h"
+-#include "content/public/browser/page.h"
+-#include "content/public/browser/render_frame_host.h"
+-#include "partition_alloc/pointers/raw_ptr.h"
+-
+-namespace adblock {
+-
+-// Collects anonymous statistics about the frequency of showing acceptable ads.
+-// Used for evaluating the effectiveness of the Acceptable Ads program.
+-class PageViewStats final
+-    : public ResourceClassificationRunner::Observer,
+-      public ActivepingTelemetryTopicProvider::StatsPayloadProvider {
+- public:
+-  enum Metric {
+-    AcceptableAds,
+-    AcceptableAdsBlockThrough,
+-    Allowing,
+-    Blocking,
+-    TotalPages
+-  };
+-
+-  PageViewStats(ResourceClassificationRunner* classification_runner,
+-                PrefService* prefs);
+-
+-  ~PageViewStats() final;
+-
+-  // ResourceClassificationRunner::Observer:
+-  void OnRequestMatched(const GURL& url,
+-                        FilterMatchResult match_result,
+-                        const std::vector<GURL>& parent_frame_urls,
+-                        ContentType content_type,
+-                        content::RenderFrameHost* render_frame_host,
+-                        const GURL& subscription,
+-                        const std::string& configuration_name) final;
+-
+-  // OnPageAllowed is redundant with respect to OnRequestMatched, so we can
+-  // ignore it.
+-  void OnPageAllowed(const GURL& url,
+-                     content::RenderFrameHost* render_frame_host,
+-                     const GURL& subscription,
+-                     const std::string& configuration_name) final {}
+-
+-  void OnPopupMatched(const GURL& url,
+-                      FilterMatchResult match_result,
+-                      const GURL& opener_url,
+-                      content::RenderFrameHost* render_frame_host,
+-                      const GURL& subscription,
+-                      const std::string& configuration_name) final;
+-
+-  // ActivepingTelemetryTopicProvider::StatsPayloadProvider:
+-  base::Value::Dict GetPayload() const final;
+-  void ResetStats() final;
+-
+-  // Counts a page view, whether it's an AA page view or not. Increments the
+-  // total count.
+-  void RegisterMainFrameNavigation(content::RenderFrameHost* render_frame_host);
+-
+-  void RegisterAcceptableAdsBlockthroughtHit(
+-      content::RenderFrameHost* render_frame_host);
+-
+- private:
+-  void OnMatchedInternal(const GURL& url,
+-                         FilterMatchResult match_result,
+-                         ContentType content_type,
+-                         content::RenderFrameHost* render_frame_host,
+-                         const GURL& subscription);
+-  // Increments count for given metric from 0 to 1 for current page, if already
+-  // 1 then noop.
+-  void RecordPageView(content::Page& page, Metric metric);
+-  // We need to park metric before main navigation is committed because we need
+-  // wait for a "final" EyeoPageInfo object. For some unknown reason for the
+-  // very same RFH or Page object UserData (Document or Page) is reset when
+-  // navigation commits. So when page starts to load subresources before
+-  // navigation is committed it uses one UserData object, and then after
+-  // navigation is comitted there is a new empty UserData created. And by that
+-  // we lose tracking which metrics were already counted and count too much for
+-  // the same page. So when main navigation is commited we can go though parked
+-  // metrics and record them.
+-  void ParkMetric(content::Page& page, Metric metric);
+-  void RecordParkedMetrics(content::Page& page);
+-  int GetPageViewsCount(Metric metric) const;
+-  void ResetPageViewsCount(Metric metric);
+-
+-  raw_ptr<ResourceClassificationRunner> classification_runner_;
+-  raw_ptr<PrefService> prefs_;
+-  const GURL endpoint_url_;
+-  std::map<content::GlobalRenderFrameHostId, std::set<Metric>>
+-      parked_metrics_before_main_navigation_;
+-  base::WeakPtrFactory<PageViewStats> weak_factory_{this};
+-};
+-
+-// Returns a closures, calling which will increment the total page view count or
+-// the Acceptable Ads Blockthrough count respectively in the last used
+-// PageViewStats instance. NOP if there's no such instance. This is a simpler
+-// way to expose access to PageViewStats to external callers than to convert it
+-// to a KeyedService.
+-base::RepeatingCallback<void(content::RenderFrameHost*)>
+-CountNavigationsCallback();
+-base::RepeatingCallback<void(content::RenderFrameHost*)>
+-CountAcceptableAdsBlockthrougCallback();
+-
+-}  // namespace adblock
+-
+-#endif  // COMPONENTS_ADBLOCK_CONTENT_BROWSER_PAGE_VIEW_STATS_H_
+diff --git a/components/adblock/core/BUILD.gn b/components/adblock/core/BUILD.gn
+index e22f187aa1..64bd4a45a9 100644
+--- a/components/adblock/core/BUILD.gn
++++ b/components/adblock/core/BUILD.gn
+@@ -49,43 +49,9 @@ source_set("schema_hash") {
+   deps = [ ":generate_schema_hash" ]
+ }
+ 
+-config("eyeo_telemetry_config") {
+-  defines = []
+-
+-  if (eyeo_telemetry_server_url != "") {
+-    # Explicitly setting Telemetry server URL, used for testing with a test
+-    # server.
+-    defines += [ "EYEO_TELEMETRY_SERVER_URL=\"$eyeo_telemetry_server_url\"" ]
+-  } else {
+-    # Implicitly setting production Telemetry server URL based on
+-    # eyeo_telemetry_client_id (or a default client id as a fallback).
+-    if (eyeo_telemetry_client_id != "") {
+-      defines += [ "EYEO_TELEMETRY_CLIENT_ID=\"$eyeo_telemetry_client_id\"" ]
+-    } else {
+-      print("WARNING! gn arg eyeo_telemetry_client_id is not set. " +
+-            "Users will not be counted correctly by eyeo.")
+-      eyeo_telemetry_client_id = "eyeochromium"
+-    }
+-    eyeo_telemetry_server_url =
+-        "https://${eyeo_telemetry_client_id}.telemetry.eyeo.com/"
+-    defines += [ "EYEO_TELEMETRY_SERVER_URL=\"$eyeo_telemetry_server_url\"" ]
+-  }
+-
+-  if (eyeo_telemetry_activeping_auth_token != "") {
+-    defines += [ "EYEO_TELEMETRY_ACTIVEPING_AUTH_TOKEN=\"$eyeo_telemetry_activeping_auth_token\"" ]
+-  } else {
+-    print("WARNING! gn arg eyeo_telemetry_activeping_auth_token is not set. " +
+-          "Users will not be counted correctly by eyeo.")
+-  }
+-}
+-
+ source_set("core") {
+   output_name = "adblock_core"
+   sources = [
+-    "activeping_telemetry_topic_provider.cc",
+-    "activeping_telemetry_topic_provider.h",
+-    "adblock_telemetry_service.cc",
+-    "adblock_telemetry_service.h",
+     "features.cc",
+     "features.h",
+     "sitekey_storage.h",
+@@ -110,7 +76,6 @@ source_set("core") {
+     "//components/version_info",
+   ]
+ 
+-  configs += [ ":eyeo_telemetry_config" ]
+ }
+ 
+ source_set("test_support") {
+@@ -152,6 +117,5 @@ source_set("unit_tests") {
+     "//testing/gtest",
+   ]
+ 
+-  configs += [ ":eyeo_telemetry_config" ]
+ }
+ 
+diff --git a/components/adblock/core/activeping_telemetry_topic_provider.cc b/components/adblock/core/activeping_telemetry_topic_provider.cc
+deleted file mode 100644
+index 6ae505b596..0000000000
+--- a/components/adblock/core/activeping_telemetry_topic_provider.cc
++++ /dev/null
+@@ -1,299 +0,0 @@
+-/* This file is part of eyeo Chromium SDK,
+- * Copyright (C) 2006-present eyeo GmbH
+- *
+- * eyeo Chromium SDK is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 3 as
+- * published by the Free Software Foundation.
+- *
+- * eyeo Chromium SDK is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-#include "components/adblock/core/activeping_telemetry_topic_provider.h"
+-
+-#include <string_view>
+-
+-#include "base/i18n/time_formatting.h"
+-#include "base/json/json_reader.h"
+-#include "base/json/json_writer.h"
+-#include "base/strings/utf_string_conversions.h"
+-#include "base/system/sys_info.h"
+-#include "base/time/time.h"
+-#include "base/uuid.h"
+-#include "components/adblock/core/common/adblock_constants.h"
+-#include "components/adblock/core/common/adblock_prefs.h"
+-#include "components/adblock/core/common/app_info.h"
+-#include "components/adblock/core/subscription/subscription_config.h"
+-
+-namespace adblock {
+-namespace {
+-int g_https_port_for_testing = 0;
+-std::optional<base::TimeDelta> g_time_delta_for_testing;
+-
+-GURL GetUrl() {
+-  GURL url(EYEO_TELEMETRY_SERVER_URL);
+-  if (!g_https_port_for_testing) {
+-    return url;
+-  }
+-  GURL::Replacements replacements;
+-  const std::string port_str = base::NumberToString(g_https_port_for_testing);
+-  replacements.SetPortStr(port_str);
+-  return url.ReplaceComponents(replacements);
+-}
+-
+-base::TimeDelta GetNormalPingInterval() {
+-  static base::TimeDelta kNormalPingInterval =
+-      g_time_delta_for_testing ? g_time_delta_for_testing.value()
+-                               : base::Hours(12);
+-  return kNormalPingInterval;
+-}
+-
+-base::TimeDelta GetRetryPingInterval() {
+-  static base::TimeDelta kRetryPingInterval =
+-      g_time_delta_for_testing ? g_time_delta_for_testing.value()
+-                               : base::Hours(1);
+-  return kRetryPingInterval;
+-}
+-
+-void AppendStringIfPresent(PrefService* pref_service,
+-                           const std::string& pref_name,
+-                           std::string_view payload_key,
+-                           base::Value::Dict& payload) {
+-  auto str = pref_service->GetString(pref_name);
+-  if (!str.empty()) {
+-    payload.Set(payload_key, std::move(str));
+-  }
+-}
+-
+-std::string FormatNextRequestTime(base::Time time) {
+-  if (time.is_null()) {
+-    return "[Unset]";
+-  }
+-  return base::UTF16ToUTF8(base::TimeFormatFriendlyDateAndTime(time));
+-}
+-}  // namespace
+-
+-ActivepingTelemetryTopicProvider::ActivepingTelemetryTopicProvider(
+-    PrefService* pref_service,
+-    SubscriptionService* subscription_service,
+-    const GURL& base_url,
+-    const std::string& auth_token,
+-    std::unique_ptr<StatsPayloadProvider> stats_payload_provider)
+-    : pref_service_(pref_service),
+-      subscription_service_(subscription_service),
+-      base_url_(base_url),
+-      auth_token_(auth_token),
+-      stats_payload_provider_(std::move(stats_payload_provider)) {}
+-
+-ActivepingTelemetryTopicProvider::~ActivepingTelemetryTopicProvider() = default;
+-
+-// static
+-GURL ActivepingTelemetryTopicProvider::DefaultBaseUrl() {
+-#if !defined(EYEO_TELEMETRY_CLIENT_ID)
+-  LOG(WARNING)
+-      << "[eyeo] Using default Telemetry server since a Telemetry client ID "
+-         "was "
+-         "not provided. Users will not be counted correctly by eyeo. Please "
+-         "set an ID via \"eyeo_telemetry_client_id\" gn argument.";
+-#endif
+-  return GetUrl();
+-}
+-
+-// static
+-std::string ActivepingTelemetryTopicProvider::DefaultAuthToken() {
+-#if defined(EYEO_TELEMETRY_ACTIVEPING_AUTH_TOKEN)
+-  DVLOG(1) << "[eyeo] Using " << EYEO_TELEMETRY_ACTIVEPING_AUTH_TOKEN
+-           << " as Telemetry authentication token";
+-  return EYEO_TELEMETRY_ACTIVEPING_AUTH_TOKEN;
+-#else
+-  LOG(WARNING)
+-      << "[eyeo] No Telemetry authentication token defined. Users will "
+-         "not be counted correctly by eyeo. Please set a token via "
+-         "\"eyeo_telemetry_activeping_auth_token\" gn argument.";
+-  return "";
+-#endif
+-}
+-
+-GURL ActivepingTelemetryTopicProvider::GetEndpointURL() const {
+-  return base_url_.Resolve("/topic/eyeochromium_activeping/version/2");
+-}
+-
+-std::string ActivepingTelemetryTopicProvider::GetAuthToken() const {
+-  return auth_token_;
+-}
+-
+-void ActivepingTelemetryTopicProvider::GetPayload(
+-    PayloadCallback callback) const {
+-  std::string serialized;
+-  // The only way JSONWriter::Write() can return fail is then the Value
+-  // contains lists or dicts that are too deep (200 levels). We just built the
+-  // payload and root objects here, they should be really shallow.
+-  CHECK(base::JSONWriter::Write(GetPayloadInternal(), &serialized));
+-  std::move(callback).Run(std::move(serialized));
+-}
+-
+-base::Time ActivepingTelemetryTopicProvider::GetTimeOfNextRequest() const {
+-  const auto next_ping_time =
+-      pref_service_->GetTime(common::prefs::kTelemetryNextPingTime);
+-  // Next ping time may be unset if this is a first run. Next request should
+-  // happen ASAP.
+-  if (next_ping_time.is_null()) {
+-    return base::Time::Now();
+-  }
+-
+-  return next_ping_time;
+-}
+-
+-void ActivepingTelemetryTopicProvider::ParseResponse(
+-    std::unique_ptr<std::string> response_content) {
+-  if (!response_content) {
+-    VLOG(1) << "[eyeo] Telemetry ping failed, no response from server";
+-    ScheduleNextPing(GetRetryPingInterval());
+-    return;
+-  }
+-
+-  VLOG(1) << "[eyeo] Response from Telemetry server: " << *response_content;
+-  auto parsed = base::JSONReader::ReadDict(*response_content);
+-  if (!parsed) {
+-    VLOG(1)
+-        << "[eyeo] Telemetry ping failed, response could not be parsed as JSON";
+-    ScheduleNextPing(GetRetryPingInterval());
+-    return;
+-  }
+-
+-  auto* error_message = parsed->FindString("error");
+-  if (error_message) {
+-    VLOG(1) << "[eyeo] Telemetry ping failed, error message: "
+-            << *error_message;
+-    ScheduleNextPing(GetRetryPingInterval());
+-    return;
+-  }
+-
+-  // For legacy reasons, "ping_response_time" is sent to us as "token". This
+-  // should be the server time of when the ping was handled, possibly truncated
+-  // for anonymity. We don't parse it or interpret it, just send it back with
+-  // next ping.
+-  auto* ping_response_time = parsed->FindString("token");
+-  if (!ping_response_time) {
+-    VLOG(1) << "[eyeo] Telemetry ping failed, response did not contain a last "
+-               "ping / token value";
+-    ScheduleNextPing(GetRetryPingInterval());
+-    return;
+-  }
+-
+-  VLOG(1) << "[eyeo] Telemetry ping succeeded";
+-  ScheduleNextPing(GetNormalPingInterval());
+-  UpdatePrefs(*ping_response_time);
+-}
+-
+-void ActivepingTelemetryTopicProvider::FetchDebugInfo(
+-    DebugInfoCallback callback) const {
+-  base::Value::Dict debug_info;
+-  debug_info.Set("endpoint_url", GetEndpointURL().spec());
+-  debug_info.Set("payload", GetPayloadInternal());
+-  debug_info.Set("first_ping",
+-                 pref_service_->GetString(
+-                     adblock::common::prefs::kTelemetryFirstPingTime));
+-  debug_info.Set("time_of_next_request",
+-                 FormatNextRequestTime(GetTimeOfNextRequest()));
+-  debug_info.Set(
+-      "last_ping",
+-      pref_service_->GetString(adblock::common::prefs::kTelemetryLastPingTime));
+-  debug_info.Set("previous_last_ping",
+-                 pref_service_->GetString(
+-                     adblock::common::prefs::kTelemetryPreviousLastPingTime));
+-
+-  std::string serialized;
+-  // The only way JSONWriter::Write() can return fail is then the Value
+-  // contains lists or dicts that are too deep (200 levels). We just built the
+-  // payload and root objects here, they should be really shallow.
+-  CHECK(base::JSONWriter::WriteWithOptions(
+-      debug_info, base::JsonOptions::OPTIONS_PRETTY_PRINT, &serialized));
+-  std::move(callback).Run(std::move(serialized));
+-}
+-
+-void ActivepingTelemetryTopicProvider::ScheduleNextPing(base::TimeDelta delay) {
+-  pref_service_->SetTime(common::prefs::kTelemetryNextPingTime,
+-                         base::Time::Now() + delay);
+-  if (stats_payload_provider_ && delay == GetNormalPingInterval()) {
+-    stats_payload_provider_->ResetStats();
+-  }
+-}
+-
+-void ActivepingTelemetryTopicProvider::UpdatePrefs(
+-    const std::string& ping_response_time) {
+-  // First ping is only set once per client.
+-  if (pref_service_->GetString(common::prefs::kTelemetryFirstPingTime)
+-          .empty()) {
+-    pref_service_->SetString(common::prefs::kTelemetryFirstPingTime,
+-                             ping_response_time);
+-  }
+-  // Previous-to-last becomes last, last becomes current.
+-  pref_service_->SetString(
+-      common::prefs::kTelemetryPreviousLastPingTime,
+-      pref_service_->GetString(common::prefs::kTelemetryLastPingTime));
+-  pref_service_->SetString(common::prefs::kTelemetryLastPingTime,
+-                           ping_response_time);
+-  // Generate a new random tag that wil be sent along with ping times in the
+-  // next request.
+-  const auto tag = base::Uuid::GenerateRandomV4();
+-  pref_service_->SetString(common::prefs::kTelemetryLastPingTag,
+-                           tag.AsLowercaseString());
+-}
+-
+-base::Value ActivepingTelemetryTopicProvider::GetPayloadInternal() const {
+-  base::Value::Dict payload;
+-  bool aa_enabled = false;
+-  auto* adblock_configuration =
+-      subscription_service_->GetFilteringConfiguration(
+-          kAdblockFilteringConfigurationName);
+-  if (adblock_configuration) {
+-    aa_enabled = base::ranges::any_of(
+-        adblock_configuration->GetFilterLists(),
+-        [&](const auto& url) { return url == AcceptableAdsUrl(); });
+-  }
+-  payload.Set("addon_name", "eyeo-chromium-sdk");
+-  payload.Set("addon_version", "2.0.0");
+-  payload.Set("application", AppInfo::Get().name);
+-  payload.Set("application_version", AppInfo::Get().version);
+-  payload.Set("aa_active", aa_enabled);
+-  payload.Set("platform", base::SysInfo::OperatingSystemName());
+-  payload.Set("platform_version", base::SysInfo::OperatingSystemVersion());
+-  if (stats_payload_provider_) {
+-    payload.Merge(stats_payload_provider_->GetPayload());
+-  }
+-  // Server requires the following parameters to either have a correct,
+-  // non-empty value, or not be present at all. We shall not send empty strings.
+-  AppendStringIfPresent(pref_service_, common::prefs::kTelemetryLastPingTag,
+-                        "last_ping_tag", payload);
+-  AppendStringIfPresent(pref_service_, common::prefs::kTelemetryFirstPingTime,
+-                        "first_ping", payload);
+-  AppendStringIfPresent(pref_service_, common::prefs::kTelemetryLastPingTime,
+-                        "last_ping", payload);
+-  AppendStringIfPresent(pref_service_,
+-                        common::prefs::kTelemetryPreviousLastPingTime,
+-                        "previous_last_ping", payload);
+-
+-  base::Value::Dict root;
+-  root.Set("payload", std::move(payload));
+-  return base::Value(std::move(root));
+-}
+-
+-// static
+-void ActivepingTelemetryTopicProvider::SetHttpsPortForTesting(
+-    int https_port_for_testing) {
+-  g_https_port_for_testing = https_port_for_testing;
+-}
+-
+-// static
+-void ActivepingTelemetryTopicProvider::SetIntervalsForTesting(
+-    base::TimeDelta time_delta) {
+-  g_time_delta_for_testing = time_delta;
+-}
+-
+-}  // namespace adblock
+diff --git a/components/adblock/core/activeping_telemetry_topic_provider.h b/components/adblock/core/activeping_telemetry_topic_provider.h
+deleted file mode 100644
+index 09988dd675..0000000000
+--- a/components/adblock/core/activeping_telemetry_topic_provider.h
++++ /dev/null
+@@ -1,94 +0,0 @@
+-/*
+- * This file is part of eyeo Chromium SDK,
+- * Copyright (C) 2006-present eyeo GmbH
+- *
+- * eyeo Chromium SDK is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 3 as
+- * published by the Free Software Foundation.
+- *
+- * eyeo Chromium SDK is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-#ifndef COMPONENTS_ADBLOCK_CORE_ACTIVEPING_TELEMETRY_TOPIC_PROVIDER_H_
+-#define COMPONENTS_ADBLOCK_CORE_ACTIVEPING_TELEMETRY_TOPIC_PROVIDER_H_
+-
+-#include "base/memory/raw_ptr.h"
+-#include "base/time/time.h"
+-#include "components/adblock/core/adblock_telemetry_service.h"
+-#include "components/adblock/core/subscription/subscription_service.h"
+-#include "components/prefs/pref_service.h"
+-
+-namespace adblock {
+-
+-// Telemetry topic provider that uploads user-counting data for periodic pings.
+-// Provides the following data in Payload:
+-// - Last ping time, previous-to-last ping time, first ping time
+-// - Unique, non-persistent tag for disambiguating pings made by clients in
+-//   the same day
+-// - Whether Acceptable Ads is enabled
+-// - Application name & version, platform name & version
+-// Note: Provides no user-identifiable information, no persistent tracking
+-// data (ie. no traceable UUID) and no information about user actions.
+-class ActivepingTelemetryTopicProvider final
+-    : public AdblockTelemetryService::TopicProvider {
+- public:
+-  // Provides additional statistics payload for ActivepingTelemetryTopicProvider
+-  class StatsPayloadProvider {
+-   public:
+-    virtual ~StatsPayloadProvider() = default;
+-    virtual base::Value::Dict GetPayload() const = 0;
+-    virtual void ResetStats() = 0;
+-  };
+-  ActivepingTelemetryTopicProvider(
+-      PrefService* pref_service,
+-      SubscriptionService* subscription_service,
+-      const GURL& base_url,
+-      const std::string& auth_token,
+-      std::unique_ptr<StatsPayloadProvider> stats_payload_provider);
+-  ~ActivepingTelemetryTopicProvider() final;
+-
+-  static GURL DefaultBaseUrl();
+-  static std::string DefaultAuthToken();
+-
+-  GURL GetEndpointURL() const final;
+-  std::string GetAuthToken() const final;
+-  void GetPayload(PayloadCallback callback) const final;
+-
+-  // Normally 12 hours since last ping, 1 hour in case of retries.
+-  base::Time GetTimeOfNextRequest() const final;
+-
+-  // Attempts to parse "token" (an opaque server description of last ping time)
+-  // from |response_content|.
+-  void ParseResponse(std::unique_ptr<std::string> response_content) final;
+-
+-  void FetchDebugInfo(DebugInfoCallback callback) const final;
+-
+-  // Sets the port used by the embedded http server required for browser tests.
+-  // Must be called before the first call to DefaultBaseUrl().
+-  static void SetHttpsPortForTesting(int https_port_for_testing);
+-
+-  // Sets the internal timing for sending pings required for browser tests.
+-  // Must be called before AdblockTelemetryService::Start().
+-  static void SetIntervalsForTesting(base::TimeDelta time_delta);
+-
+- private:
+-  void ScheduleNextPing(base::TimeDelta delay);
+-  void UpdatePrefs(const std::string& ping_response_time);
+-  base::Value GetPayloadInternal() const;
+-
+-  raw_ptr<PrefService> pref_service_;
+-  raw_ptr<SubscriptionService> subscription_service_;
+-  const GURL base_url_;
+-  const std::string auth_token_;
+-  std::unique_ptr<StatsPayloadProvider> stats_payload_provider_;
+-};
+-
+-}  // namespace adblock
+-
+-#endif  // COMPONENTS_ADBLOCK_CORE_ACTIVEPING_TELEMETRY_TOPIC_PROVIDER_H_
+diff --git a/components/adblock/core/adblock_telemetry_service.cc b/components/adblock/core/adblock_telemetry_service.cc
+deleted file mode 100644
+index 27aac57931..0000000000
+--- a/components/adblock/core/adblock_telemetry_service.cc
++++ /dev/null
+@@ -1,308 +0,0 @@
+-/*
+- * This file is part of eyeo Chromium SDK,
+- * Copyright (C) 2006-present eyeo GmbH
+- *
+- * eyeo Chromium SDK is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 3 as
+- * published by the Free Software Foundation.
+- *
+- * eyeo Chromium SDK is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-#include "components/adblock/core/adblock_telemetry_service.h"
+-
+-#include <string>
+-
+-#include "base/barrier_callback.h"
+-#include "base/functional/bind.h"
+-#include "base/memory/weak_ptr.h"
+-#include "base/strings/string_number_conversions.h"
+-#include "base/strings/string_util.h"
+-#include "base/strings/stringprintf.h"
+-#include "base/strings/utf_string_conversions.h"
+-#include "base/time/time.h"
+-#include "base/timer/timer.h"
+-#include "components/adblock/core/common/adblock_constants.h"
+-#include "components/adblock/core/common/adblock_prefs.h"
+-#include "components/adblock/core/net/adblock_request_throttle.h"
+-#include "components/prefs/pref_service.h"
+-#include "net/base/load_flags.h"
+-#include "services/network/public/cpp/resource_request.h"
+-#include "services/network/public/cpp/simple_url_loader.h"
+-#include "services/network/public/mojom/url_response_head.mojom.h"
+-
+-namespace adblock {
+-
+-namespace {
+-
+-const char kDataType[] = "application/json";
+-net::NetworkTrafficAnnotationTag kTrafficAnnotation =
+-    net::DefineNetworkTrafficAnnotation("adblock_telemetry_request", R"(
+-      semantics {
+-        sender: "AdblockTelemetryService"
+-        description:
+-          "Messages sent to telemetry.eyeo.com to report usage statistics."
+-          "Contain no user-identifiable data."
+-        trigger:
+-          "Periodic, several times a day."
+-        data:
+-          "Subject to change: "
+-          "Dates of first ping, last ping and previous-to-last ping. "
+-          "A non-persistent, unique ID that disambiguates pings made in the "
+-          "same day. "
+-          "Application name and version (ex. Chromium 86.0.4240.183). "
+-          "Platform name and version (ex. Windows 10). "
+-          "Whether Acceptable Ads are in use (yes/no)."
+-        destination: WEBSITE
+-      }
+-      policy {
+-        cookies_allowed: NO
+-        setting:
+-          "Enabled or disabled via 'Ad blocking' setting."
+-        policy_exception_justification:
+-          "Parent setting may be controlled by policy"
+-        }
+-      })");
+-
+-}  // namespace
+-
+-// Represents an ongoing chain of requests relevant to a Topic.
+-// A Topic is and endpoint on the Telemetry server that expects messages
+-// about a domain of activity, ex. usage of Acceptable Ads or frequency of
+-// filter "hits" per filter list. The browser may report on multiple topics.
+-// Messages are sent periodically. The interval of communication and the
+-// content of the messages is provided by a TopicProvider.
+-class AdblockTelemetryService::Conversation {
+- public:
+-  Conversation(
+-      std::unique_ptr<TopicProvider> topic_provider,
+-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+-      AdblockRequestThrottle* request_throttle)
+-      : topic_provider_(std::move(topic_provider)),
+-        url_loader_factory_(url_loader_factory),
+-        request_throttle_(request_throttle) {}
+-
+-  bool IsRequestDue() {
+-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-    const auto due_time = topic_provider_->GetTimeOfNextRequest();
+-    if (due_time > base::Time::Now()) {
+-      VLOG(1) << "[eyeo] Telemetry request for "
+-              << topic_provider_->GetEndpointURL()
+-              << " not due yet, should run at " << due_time;
+-      return false;
+-    }
+-    if (IsRequestInFlight()) {
+-      VLOG(1) << "[eyeo] Telemetry request for "
+-              << topic_provider_->GetEndpointURL() << " already in-flight";
+-      return false;
+-    }
+-    VLOG(1) << "[eyeo] Telemetry request for "
+-            << topic_provider_->GetEndpointURL() << " is due";
+-    return true;
+-  }
+-
+-  void StartRequest() {
+-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-    VLOG(1) << "[eyeo] Telemetry request for "
+-            << topic_provider_->GetEndpointURL() << " starting now";
+-    is_in_flight_ = true;
+-    request_throttle_->RunWhenRequestsAllowed(base::BindOnce(
+-        &Conversation::OnRequestsAllowed, weak_ptr_factory_.GetWeakPtr()));
+-  }
+-
+-  void Stop() {
+-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-    url_loader_.reset();
+-  }
+-
+-  const std::unique_ptr<TopicProvider>& GetTopicProvider() const {
+-    return topic_provider_;
+-  }
+-
+- private:
+-  bool IsRequestInFlight() { return is_in_flight_; }
+-
+-  void OnRequestsAllowed() {
+-    topic_provider_->GetPayload(base::BindOnce(&Conversation::MakeRequest,
+-                                               weak_ptr_factory_.GetWeakPtr()));
+-  }
+-
+-  void MakeRequest(std::string payload) {
+-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-    auto request = std::make_unique<network::ResourceRequest>();
+-    request->url = topic_provider_->GetEndpointURL();
+-    VLOG(1) << "[eyeo] Sending request to: " << request->url;
+-    request->method = net::HttpRequestHeaders::kPostMethod;
+-    // The server expects authorization via a bearer token. The token may be
+-    // empty in testing builds.
+-    const auto auth_token = topic_provider_->GetAuthToken();
+-    if (!auth_token.empty()) {
+-      request->headers.SetHeader(net::HttpRequestHeaders::kAuthorization,
+-                                 "Bearer " + auth_token);
+-    }
+-    // Notify the server we're expecting a JSON response.
+-    request->headers.SetHeader(net::HttpRequestHeaders::kAccept, kDataType);
+-    // Disallow using cache - identical requests should be physically sent to
+-    // the server.
+-    request->load_flags = net::LOAD_BYPASS_CACHE | net::LOAD_DISABLE_CACHE;
+-    // Omitting credentials prevents cookies from being sent. The server does
+-    // not expect or parse cookies, but we want to be on the safe side,
+-    // privacy-wise.
+-    request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+-
+-    // If any url_loader_ existed previously, it will be overwritten and its
+-    // request will be cancelled.
+-    url_loader_ = network::SimpleURLLoader::Create(std::move(request),
+-                                                   kTrafficAnnotation);
+-
+-    VLOG(2) << "[eyeo] Payload: " << payload;
+-    url_loader_->AttachStringForUpload(payload, kDataType);
+-    // The Telemetry server responds with a JSON that contains a description of
+-    // any potential error. We want to parse this JSON if possible, we're not
+-    // content with just an HTTP error code. Process the response content even
+-    // if the code is not 200.
+-    url_loader_->SetAllowHttpErrorResults(true);
+-
+-    url_loader_->DownloadToString(
+-        url_loader_factory_.get(),
+-        base::BindOnce(&Conversation::OnResponseArrived,
+-                       base::Unretained(this)),
+-        network::SimpleURLLoader::kMaxBoundedStringDownloadSize - 1);
+-  }
+-
+-  void OnResponseArrived(std::unique_ptr<std::string> server_response) {
+-    DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-    topic_provider_->ParseResponse(std::move(server_response));
+-    url_loader_.reset();
+-    is_in_flight_ = false;
+-  }
+-
+-  SEQUENCE_CHECKER(sequence_checker_);
+-  bool is_in_flight_ = false;
+-  std::unique_ptr<TopicProvider> topic_provider_;
+-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+-  raw_ptr<AdblockRequestThrottle> request_throttle_;
+-  std::unique_ptr<network::SimpleURLLoader> url_loader_;
+-  base::WeakPtrFactory<Conversation> weak_ptr_factory_{this};
+-};
+-
+-AdblockTelemetryService::AdblockTelemetryService(
+-    SubscriptionService* subscription_service,
+-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+-    AdblockRequestThrottle* request_throttle,
+-    base::TimeDelta check_interval)
+-    : subscription_service_(subscription_service),
+-      url_loader_factory_(url_loader_factory),
+-      request_throttle_(request_throttle),
+-      check_interval_(check_interval) {
+-  DCHECK(subscription_service_);
+-  subscription_service_->AddObserver(this);
+-}
+-
+-AdblockTelemetryService::~AdblockTelemetryService() {
+-  DCHECK(subscription_service_);
+-  subscription_service_->RemoveObserver(this);
+-}
+-
+-void AdblockTelemetryService::AddTopicProvider(
+-    std::unique_ptr<TopicProvider> topic_provider) {
+-  ongoing_conversations_.push_back(std::make_unique<Conversation>(
+-      std::move(topic_provider), url_loader_factory_, request_throttle_));
+-}
+-
+-void AdblockTelemetryService::Start() {
+-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-  auto* adblock_configuration =
+-      subscription_service_->GetFilteringConfiguration(
+-          kAdblockFilteringConfigurationName);
+-  if (adblock_configuration) {
+-    OnEnabledStateChanged(adblock_configuration);
+-    adblock_configuration->AddObserver(this);
+-  }
+-}
+-
+-void AdblockTelemetryService::GetTopicProvidersDebugInfo(
+-    TopicProvidersDebugInfoCallback service_callback) const {
+-  const auto barrier_callback = base::BarrierCallback<std::string>(
+-      ongoing_conversations_.size(), std::move(service_callback));
+-  for (const auto& conversation : ongoing_conversations_) {
+-    conversation->GetTopicProvider()->FetchDebugInfo(barrier_callback);
+-  }
+-}
+-
+-void AdblockTelemetryService::OnEnabledStateChanged(
+-    FilteringConfiguration* config) {
+-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-  if (config->IsEnabled() && !timer_.IsRunning()) {
+-    VLOG(1) << "[eyeo] Starting periodic Telemetry requests for enabled "
+-               "configuration";
+-    RunPeriodicCheck();
+-  } else if (!config->IsEnabled() && timer_.IsRunning()) {
+-    VLOG(1) << "[eyeo] Stopping periodic Telemetry requests for disabled "
+-               "configuration";
+-    Shutdown();
+-  }
+-}
+-
+-void AdblockTelemetryService::OnFilteringConfigurationInstalled(
+-    FilteringConfiguration* config) {
+-  if (config->GetName() != kAdblockFilteringConfigurationName) {
+-    return;
+-  }
+-  if (config->IsEnabled() && !timer_.IsRunning()) {
+-    VLOG(1) << "[eyeo] Starting periodic Telemetry requests for configuration";
+-    RunPeriodicCheck();
+-  }
+-  // We cannot add twice the same observer, but calling RemoveObserver() for not
+-  // added previously observer is fine. The situation of adding twice the same
+-  // observer should not happen in production code without programmer error
+-  // though it happens in our tests, but for extra safety instead of changing
+-  // test code let's call RemoveObserver().
+-  config->RemoveObserver(this);
+-  config->AddObserver(this);
+-}
+-
+-void AdblockTelemetryService::OnFilteringConfigurationUninstalled(
+-    std::string_view config_name) {
+-  if (config_name != kAdblockFilteringConfigurationName) {
+-    return;
+-  }
+-  if (timer_.IsRunning()) {
+-    VLOG(1) << "[eyeo] Stopping periodic Telemetry requests for removed "
+-               "configuration";
+-    Shutdown();
+-  }
+-}
+-
+-void AdblockTelemetryService::RunPeriodicCheck() {
+-  for (auto& conversation : ongoing_conversations_) {
+-    if (conversation->IsRequestDue()) {
+-      conversation->StartRequest();
+-    }
+-  }
+-  timer_.Start(FROM_HERE, check_interval_,
+-               base::BindRepeating(&AdblockTelemetryService::RunPeriodicCheck,
+-                                   base::Unretained(this)));
+-}
+-
+-void AdblockTelemetryService::Shutdown() {
+-  timer_.Stop();
+-  for (auto& conversation : ongoing_conversations_) {
+-    conversation->Stop();
+-  }
+-}
+-
+-void AdblockTelemetryService::
+-    TriggerConversationsWithoutDueTimeCheckForTesting() {
+-  for (auto& conversation : ongoing_conversations_) {
+-    conversation->StartRequest();
+-  }
+-}
+-
+-}  // namespace adblock
+diff --git a/components/adblock/core/adblock_telemetry_service.h b/components/adblock/core/adblock_telemetry_service.h
+deleted file mode 100644
+index 8c7d3190e4..0000000000
+--- a/components/adblock/core/adblock_telemetry_service.h
++++ /dev/null
+@@ -1,132 +0,0 @@
+-/*
+- * This file is part of eyeo Chromium SDK,
+- * Copyright (C) 2006-present eyeo GmbH
+- *
+- * eyeo Chromium SDK is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License version 3 as
+- * published by the Free Software Foundation.
+- *
+- * eyeo Chromium SDK is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with eyeo Chromium SDK.  If not, see <http://www.gnu.org/licenses/>.
+- */
+-
+-#ifndef COMPONENTS_ADBLOCK_CORE_ADBLOCK_TELEMETRY_SERVICE_H_
+-#define COMPONENTS_ADBLOCK_CORE_ADBLOCK_TELEMETRY_SERVICE_H_
+-
+-#include <memory>
+-#include <string>
+-#include <vector>
+-
+-#include "base/functional/callback_forward.h"
+-#include "base/memory/raw_ptr.h"
+-#include "base/sequence_checker.h"
+-#include "base/time/time.h"
+-#include "base/timer/timer.h"
+-#include "components/adblock/core/configuration/filtering_configuration.h"
+-#include "components/adblock/core/net/adblock_request_throttle.h"
+-#include "components/adblock/core/subscription/subscription_service.h"
+-#include "components/keyed_service/core/keyed_service.h"
+-#include "partition_alloc/pointers/raw_ptr.h"
+-#include "services/network/public/cpp/shared_url_loader_factory.h"
+-#include "url/gurl.h"
+-
+-namespace network {
+-class SimpleURLLoader;
+-}  // namespace network
+-
+-namespace adblock {
+-/**
+- * @brief Sends periodic pings to eyeo in order to count active users. Executed
+- * from Browser process UI main thread.
+- */
+-class AdblockTelemetryService
+-    : public KeyedService,
+-      public FilteringConfiguration::Observer,
+-      public SubscriptionService::SubscriptionObserver {
+- public:
+-  // Provides data and behavior relevant for a Telemetry "topic". A topic could
+-  // be "counting users" or "reporting filter list hits" for example.
+-  class TopicProvider {
+-   public:
+-    using PayloadCallback = base::OnceCallback<void(std::string payload)>;
+-    using DebugInfoCallback = base::OnceCallback<void(std::string payload)>;
+-    virtual ~TopicProvider() = default;
+-    // Endpoint URL on the Telemetry server onto which requests should be sent.
+-    virtual GURL GetEndpointURL() const = 0;
+-    // Authorization bearer token for the endpoint defined by GetEndpointURL().
+-    virtual std::string GetAuthToken() const = 0;
+-    // Data uploaded with the request, should be valid for the schema
+-    // present on the server. Async to allow querying asynchronous data sources.
+-    virtual void GetPayload(PayloadCallback callback) const = 0;
+-    // Returns the desired time when AdblockTelemetryService should make the
+-    // next network request.
+-    virtual base::Time GetTimeOfNextRequest() const = 0;
+-    // Parses the response returned by the Telemetry server. |response_content|
+-    // may be null. Implementation is free to implement a "retry" in case of
+-    // response errors via GetTimeToNextRequest().
+-    virtual void ParseResponse(
+-        std::unique_ptr<std::string> response_content) = 0;
+-    // Gets debugging info to be logged on chrome://adblock-internals. Do not
+-    // put any secrets here (tokens, api keys). Asynchronous to allow reusing
+-    // the async logic of GetPayload, if needed.
+-    virtual void FetchDebugInfo(DebugInfoCallback callback) const = 0;
+-  };
+-  AdblockTelemetryService(
+-      SubscriptionService* subscription_service_,
+-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+-      AdblockRequestThrottle* request_throttle,
+-      base::TimeDelta check_interval);
+-  ~AdblockTelemetryService() override;
+-  using TopicProvidersDebugInfoCallback =
+-      base::OnceCallback<void(std::vector<std::string>)>;
+-
+-  // Add all required topic providers before calling Start().
+-  void AddTopicProvider(std::unique_ptr<TopicProvider> topic_provider);
+-
+-  // Starts periodic Telemetry requests, provided ad-blocking is enabled.
+-  // If ad blocking is disabled, the schedule will instead start when
+-  // ad blocking becomes enabled.
+-  void Start();
+-
+-  // KeyedService:
+-  void Shutdown() override;
+-
+-  // FilteringConfiguration::Observer
+-  void OnEnabledStateChanged(FilteringConfiguration* config) override;
+-
+-  // Collects debug information from all topic providers. Runs |callback| once
+-  // all topic providers have provided their info.
+-  void GetTopicProvidersDebugInfo(
+-      TopicProvidersDebugInfoCallback callback) const;
+-  // SubscriptionService::SubscriptionObserver
+-  void OnFilteringConfigurationInstalled(
+-      FilteringConfiguration* config) override;
+-  void OnFilteringConfigurationUninstalled(
+-      std::string_view config_name) override;
+-
+-  // For testing purposes only: triggers immediately requests for all added
+-  // providers
+-  void TriggerConversationsWithoutDueTimeCheckForTesting();
+-
+- private:
+-  void RunPeriodicCheck();
+-
+-  SEQUENCE_CHECKER(sequence_checker_);
+-  raw_ptr<SubscriptionService> subscription_service_;
+-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+-  raw_ptr<AdblockRequestThrottle> request_throttle_;
+-  base::TimeDelta check_interval_;
+-
+-  class Conversation;
+-  std::vector<std::unique_ptr<Conversation>> ongoing_conversations_;
+-  base::OneShotTimer timer_;
+-};
+-
+-}  // namespace adblock
+-
+-#endif  // COMPONENTS_ADBLOCK_CORE_ADBLOCK_TELEMETRY_SERVICE_H_
+diff --git a/components/adblock/core/common/adblock_constants.cc b/components/adblock/core/common/adblock_constants.cc
+index f849681d11..5fda3a4618 100644
+--- a/components/adblock/core/common/adblock_constants.cc
++++ b/components/adblock/core/common/adblock_constants.cc
+@@ -23,8 +23,6 @@
+ 
+ namespace adblock {
+ 
+-const char kSiteKeyHeaderKey[] = "x-adblock-key";
+-
+ const char kAllowlistEverythingFilter[] = "@@*$document";
+ 
+ const char kAdblockFilteringConfigurationName[] = "adblock";
+diff --git a/components/adblock/core/common/adblock_constants.h b/components/adblock/core/common/adblock_constants.h
+index 0e192c4e7e..ad9d4bd43a 100644
+--- a/components/adblock/core/common/adblock_constants.h
++++ b/components/adblock/core/common/adblock_constants.h
+@@ -29,7 +29,6 @@ namespace flat {
+ enum AbpResource : int8_t;
+ }
+ 
+-extern const char kSiteKeyHeaderKey[];
+ extern const char kAllowlistEverythingFilter[];
+ extern const char kAdblockFilteringConfigurationName[];
+ 
+diff --git a/components/adblock/core/common/adblock_utils.cc b/components/adblock/core/common/adblock_utils.cc
+index 787faabd09..0564cb522d 100644
+--- a/components/adblock/core/common/adblock_utils.cc
++++ b/components/adblock/core/common/adblock_utils.cc
+@@ -46,16 +46,6 @@ std::string CreateDomainAllowlistingFilter(const std::string& domain) {
+ 
+ SiteKey GetSitekeyHeader(
+     const scoped_refptr<net::HttpResponseHeaders>& headers) {
+-  size_t iterator = 0;
+-  std::string name;
+-  std::string value;
+-  while (headers->EnumerateHeaderLines(&iterator, &name, &value)) {
+-    std::transform(name.begin(), name.end(), name.begin(),
+-                   [](unsigned char c) { return std::tolower(c); });
+-    if (name == adblock::kSiteKeyHeaderKey) {
+-      return SiteKey{value};
+-    }
+-  }
+   return {};
+ }
+ 
+diff --git a/components/adblock/core/common/app_info.cc b/components/adblock/core/common/app_info.cc
+index 8350389078..9528b3aa04 100644
+--- a/components/adblock/core/common/app_info.cc
++++ b/components/adblock/core/common/app_info.cc
+@@ -29,18 +29,6 @@ const AppInfo& AppInfo::Get() {
+ }
+ 
+ AppInfo::AppInfo() {
+-#if defined(EYEO_APPLICATION_NAME)
+-  name = EYEO_APPLICATION_NAME;
+-#else
+-  name = version_info::GetProductName();
+-#endif
+-#if defined(EYEO_APPLICATION_VERSION)
+-  version = EYEO_APPLICATION_VERSION;
+-#else
+-  version = version_info::GetVersionNumber();
+-#endif
+-  base::ReplaceChars(version_info::GetOSType(), base::kWhitespaceASCII, "",
+-                     &client_os);
+ }
+ 
+ }  // namespace adblock
+diff --git a/components/adblock/core/converter/parser/metadata.cc b/components/adblock/core/converter/parser/metadata.cc
+index ff22f29f83..6a54faf5b7 100644
+--- a/components/adblock/core/converter/parser/metadata.cc
++++ b/components/adblock/core/converter/parser/metadata.cc
+@@ -58,13 +58,6 @@ absl::optional<Metadata> Metadata::FromStream(std::istream& filter_stream) {
+     if (key == "homepage") {
+       homepage = value;
+     } else if (key == "redirect") {
+-      auto url = GURL(value);
+-      if (url.is_valid()) {
+-        redirect_url = url;
+-      } else {
+-        VLOG(1) << "[eyeo] Invalid redirect URL: " << value
+-                << ". Will not redirect.";
+-      }
+     } else if (key == "title") {
+       title = value;
+     } else if (key == "version") {
+@@ -107,6 +100,7 @@ Metadata::~Metadata() = default;
+ 
+ // static
+ bool Metadata::IsValidAdblockHeader(const std::string& adblock_header) {
++  if ((true)) return true;
+   static re2::RE2 adblock_header_re("^\\[Adblock.*\\]");
+   std::string adblock_header_trimmed;
+ 
+diff --git a/components/adblock/core/converter/parser/url_filter.cc b/components/adblock/core/converter/parser/url_filter.cc
+index 39224c02ca..a105d14346 100644
+--- a/components/adblock/core/converter/parser/url_filter.cc
++++ b/components/adblock/core/converter/parser/url_filter.cc
+@@ -51,6 +51,10 @@ std::string SanitizePipeCharacters(std::string pattern) {
+   // Skip up to one trailing | characters, this is the right anchor.
+   bool pattern_has_right_anchor = base::EndsWith(piece, "|");
+   if (pattern_has_right_anchor) {
++    if (piece.size() == 0) {
++      LOG(ERROR) << "[eyeo] Found invalid pattern string '" << pattern << "'";
++      return std::string();
++    }
+     piece.remove_suffix(1);
+   }
+   if (piece.find('|') == std::string_view::npos) {
+diff --git a/components/adblock/core/converter/parser/url_filter_options.cc b/components/adblock/core/converter/parser/url_filter_options.cc
+index 6578b9e422..8c74b8b71a 100644
+--- a/components/adblock/core/converter/parser/url_filter_options.cc
++++ b/components/adblock/core/converter/parser/url_filter_options.cc
+@@ -88,11 +88,7 @@ absl::optional<UrlFilterOptions> UrlFilterOptions::FromString(
+       }
+       domains = DomainOption::FromString(value, kDomainOrSitekeySeparator);
+     } else if (key == "sitekey") {
+-      if (value.empty()) {
+-        VLOG(1) << "[eyeo] Sitekey option has to have a value.";
+-        return {};
+-      }
+-      sitekeys = ParseSitekeys(value);
++      return {};
+     } else if (key == "csp") {
+       if (!IsValidCsp(value)) {
+         VLOG(1) << "[eyeo] Invalid CSP filter directives: " << value;
+@@ -184,6 +180,7 @@ absl::optional<UrlFilterOptions::RewriteOption> UrlFilterOptions::ParseRewrite(
+ // static
+ SiteKeys UrlFilterOptions::ParseSitekeys(const std::string& sitekey_value) {
+   SiteKeys sitekeys;
++  if ((true)) return sitekeys;
+   for (auto& sitekey : base::SplitString(
+            base::ToUpperASCII(sitekey_value), kDomainOrSitekeySeparator,
+            base::KEEP_WHITESPACE, base::SPLIT_WANT_NONEMPTY)) {
+diff --git a/components/adblock/core/resources/BUILD.gn b/components/adblock/core/resources/BUILD.gn
+index fe6fbbb731..faf01cbc59 100644
+--- a/components/adblock/core/resources/BUILD.gn
++++ b/components/adblock/core/resources/BUILD.gn
+@@ -32,26 +32,6 @@ template("make_preloaded_subscription") {
+   }
+ }
+ 
+-# Note, url is *not* used to download the list during build time, only to
+-# identify the subscription. Consider it metadata.
+-make_preloaded_subscription("make_easylist") {
+-  input = "//components/adblock/core/resources/easylist.txt.gz"
+-  url = "https://easylist-downloads.adblockplus.org/easylist.txt"
+-  output = "${target_gen_dir}/easylist.fb"
+-}
+-
+-make_preloaded_subscription("make_exceptionrules") {
+-  input = "//components/adblock/core/resources/exceptionrules.txt.gz"
+-  url = "https://easylist-downloads.adblockplus.org/exceptionrules.txt"
+-  output = "${target_gen_dir}/exceptionrules.fb"
+-}
+-
+-make_preloaded_subscription("make_anticv") {
+-  input = "//components/adblock/core/resources/anticv.txt.gz"
+-  url = "https://easylist-downloads.adblockplus.org/abp-filters-anti-cv.txt"
+-  output = "${target_gen_dir}/anticv.fb"
+-}
+-
+ action("prepare_snippets") {
+   script = "//components/adblock/core/resources/snippets_deps.py"
+   if (is_debug) {
+@@ -86,9 +66,6 @@ grit("adblock_resources") {
+     "adblock_resources.pak",
+   ]
+   deps = [
+-    ":make_anticv",
+-    ":make_easylist",
+-    ":make_exceptionrules",
+     ":prepare_snippets",
+   ]
+   output_dir = "$root_gen_dir/components/adblock/core/resources"
+diff --git a/components/adblock/core/resources/adblock_resources.grd b/components/adblock/core/resources/adblock_resources.grd
+index dd4d8ab937..51f51be44d 100644
+--- a/components/adblock/core/resources/adblock_resources.grd
++++ b/components/adblock/core/resources/adblock_resources.grd
+@@ -30,9 +30,6 @@
+       <include name="IDR_ADBLOCK_ELEMHIDE_EMU_JS" file="elemhideemu.jst" type="BINDATA" />
+       <include name="IDR_ADBLOCK_SNIPPETS_JS" file="${root_gen_dir}/components/adblock/core/resources/snippets.jst" use_base_dir="false" type="BINDATA" compress="gzip" />
+       <include name="IDR_ADBLOCK_SNIPPETS_XPATH3_DEP_JS" file="${root_gen_dir}/components/adblock/core/resources/snippets-xpath3-dep.jst" use_base_dir="false" type="BINDATA" compress="gzip" />
+-      <include name="IDR_ADBLOCK_FLATBUFFER_EASYLIST" file="${root_gen_dir}/components/adblock/core/resources/easylist.fb" use_base_dir="false" type="BINDATA" compress="gzip" />
+-      <include name="IDR_ADBLOCK_FLATBUFFER_EXCEPTIONRULES" file="${root_gen_dir}/components/adblock/core/resources/exceptionrules.fb" use_base_dir="false" type="BINDATA" compress="gzip" />
+-      <include name="IDR_ADBLOCK_FLATBUFFER_ANTICV" file="${root_gen_dir}/components/adblock/core/resources/anticv.fb" use_base_dir="false" type="BINDATA" compress="gzip" />
+     </includes>
+   </release>
+ </grit>
+diff --git a/components/adblock/core/sitekey_storage_impl.cc b/components/adblock/core/sitekey_storage_impl.cc
+index 4c3abf1fc0..a6621cf58d 100644
+--- a/components/adblock/core/sitekey_storage_impl.cc
++++ b/components/adblock/core/sitekey_storage_impl.cc
+@@ -35,6 +35,7 @@ void SitekeyStorageImpl::ProcessResponseHeaders(
+     const GURL& request_url,
+     const scoped_refptr<net::HttpResponseHeaders>& headers,
+     const std::string& user_agent) {
++  if ((true)) return;
+   if (user_agent.empty()) {
+     LOG(WARNING) << "[eyeo] No user agent info";
+     return;
+@@ -51,6 +52,7 @@ void SitekeyStorageImpl::ProcessResponseHeaders(
+ 
+ absl::optional<std::pair<GURL, SiteKey>>
+ SitekeyStorageImpl::FindSiteKeyForAnyUrl(const std::vector<GURL>& urls) const {
++  if ((true)) return {};
+   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+   for (const auto& url : urls) {
+     auto elem = url_to_sitekey_map_.find(url);
+@@ -64,6 +66,7 @@ SitekeyStorageImpl::FindSiteKeyForAnyUrl(const std::vector<GURL>& urls) const {
+ void SitekeyStorageImpl::ProcessSiteKey(const GURL& request_url,
+                                         const SiteKey& site_key,
+                                         const std::string& user_agent) {
++  if ((true)) return;
+   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+   DCHECK(!site_key.value().empty());
+   auto site_key_pair = FindSiteKeyForAnyUrl({request_url});
+@@ -114,6 +117,7 @@ bool SitekeyStorageImpl::IsSitekeySignatureValid(
+     const std::string& public_key_b64,
+     const std::string& signature_b64,
+     const std::string& data) const {
++  if ((true)) return false;
+   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+   std::string signature;
+   if (!base::Base64Decode(signature_b64, &signature,
+diff --git a/components/adblock/core/subscription/filtering_configuration_maintainer.h b/components/adblock/core/subscription/filtering_configuration_maintainer.h
+index 34f81cf237..f14ce12a38 100644
+--- a/components/adblock/core/subscription/filtering_configuration_maintainer.h
++++ b/components/adblock/core/subscription/filtering_configuration_maintainer.h
+@@ -41,6 +41,8 @@ class FilteringConfigurationMaintainer {
+   virtual std::unique_ptr<SubscriptionCollection> GetSubscriptionCollection()
+       const = 0;
+ 
++  virtual void StartUpdate() = 0;
++
+   // Allows inspecting what Subscriptions are currently in use. This includes
+   // ongoing downloads, preloaded subscriptions and installed subscriptions.
+   virtual std::vector<scoped_refptr<Subscription>> GetCurrentSubscriptions()
+diff --git a/components/adblock/core/subscription/filtering_configuration_maintainer_impl.cc b/components/adblock/core/subscription/filtering_configuration_maintainer_impl.cc
+index 2b2da2a694..f36e444677 100644
+--- a/components/adblock/core/subscription/filtering_configuration_maintainer_impl.cc
++++ b/components/adblock/core/subscription/filtering_configuration_maintainer_impl.cc
+@@ -269,6 +269,14 @@ void FilteringConfigurationMaintainerImpl::RemoveDuplicateSubscriptions() {
+                         unique_subscriptions.end());
+ }
+ 
++void FilteringConfigurationMaintainerImpl::StartUpdate() {
++  LOG(INFO) << "[eyeo] Running forced update";
++  for (auto& subscription : current_state_) {
++    const auto& url = subscription->GetSourceUrl();
++    DownloadAndInstallSubscription(url);
++  }
++}
++
+ void FilteringConfigurationMaintainerImpl::RunUpdateCheck() {
+   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+   VLOG(1) << "[eyeo] Running update check";
+@@ -309,7 +317,6 @@ void FilteringConfigurationMaintainerImpl::RunUpdateCheck() {
+                                      AcceptableAdsUrl();
+                             }) &&
+       persistent_metadata_->IsExpired(AcceptableAdsUrl())) {
+-    PingAcceptableAds();
+   }
+ }
+ 
+@@ -401,15 +408,6 @@ void FilteringConfigurationMaintainerImpl::SubscriptionAddedToStorage(
+   subscription_updated_callback_.Run(subscription->GetSourceUrl());
+ }
+ 
+-void FilteringConfigurationMaintainerImpl::PingAcceptableAds() {
+-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+-  DCHECK(IsInitialized());
+-  downloader_->DoHeadRequest(
+-      AcceptableAdsUrl(),
+-      base::BindOnce(&FilteringConfigurationMaintainerImpl::OnHeadRequestDone,
+-                     weak_ptr_factory_.GetWeakPtr()));
+-}
+-
+ void FilteringConfigurationMaintainerImpl::OnHeadRequestDone(
+     const std::string version) {
+   if (version.empty()) {
+@@ -428,7 +426,7 @@ void FilteringConfigurationMaintainerImpl::UninstallSubscription(
+             << subscription_url;
+     return;
+   }
+-  if (subscription_url != AcceptableAdsUrl()) {
++  if ((true) || subscription_url != AcceptableAdsUrl()) {
+     // Remove metadata associated with the subscription. Retain (forever)
+     // metadata of the Acceptable Ads subscription even when it's no longer
+     // installed, to allow continued HEAD-only pings for user counting purposes.
+diff --git a/components/adblock/core/subscription/filtering_configuration_maintainer_impl.h b/components/adblock/core/subscription/filtering_configuration_maintainer_impl.h
+index e32b836cf9..875a51e42d 100644
+--- a/components/adblock/core/subscription/filtering_configuration_maintainer_impl.h
++++ b/components/adblock/core/subscription/filtering_configuration_maintainer_impl.h
+@@ -61,6 +61,8 @@ class FilteringConfigurationMaintainerImpl
+ 
+   void RemoveAutoInstalledSubscriptions() final;
+ 
++  void StartUpdate() final;
++
+   // FilteringConfiguration::Observer:
+   void OnFilterListsChanged(FilteringConfiguration* config) final;
+   void OnAllowedDomainsChanged(FilteringConfiguration* config) final;
+diff --git a/components/adblock/core/subscription/subscription_config.cc b/components/adblock/core/subscription/subscription_config.cc
+index d8fe238ee3..3156188e92 100644
+--- a/components/adblock/core/subscription/subscription_config.cc
++++ b/components/adblock/core/subscription/subscription_config.cc
+@@ -355,10 +355,7 @@ bool config::AllowPrivilegedFilters(const GURL& url) {
+ 
+ const std::vector<PreloadedSubscriptionInfo>&
+ config::GetPreloadedSubscriptionConfiguration() {
+-  static const std::vector<PreloadedSubscriptionInfo> preloaded_subscriptions =
+-      {{"*easylist.txt", IDR_ADBLOCK_FLATBUFFER_EASYLIST},
+-       {"*exceptionrules.txt", IDR_ADBLOCK_FLATBUFFER_EXCEPTIONRULES},
+-       {"*abp-filters-anti-cv.txt", IDR_ADBLOCK_FLATBUFFER_ANTICV}};
++  static const std::vector<PreloadedSubscriptionInfo> preloaded_subscriptions = {};
+   return preloaded_subscriptions;
+ }
+ 
+diff --git a/components/adblock/core/subscription/subscription_service.h b/components/adblock/core/subscription/subscription_service.h
+index 0bff5183da..d5aae25db5 100644
+--- a/components/adblock/core/subscription/subscription_service.h
++++ b/components/adblock/core/subscription/subscription_service.h
+@@ -38,6 +38,7 @@ namespace adblock {
+ // FilteringConfigurations.
+ class SubscriptionService : public KeyedService {
+  public:
++  virtual void StartUpdate() = 0;
+   using Snapshot = std::vector<std::unique_ptr<SubscriptionCollection>>;
+   class SubscriptionObserver : public base::CheckedObserver {
+    public:
+diff --git a/components/adblock/core/subscription/subscription_service_impl.cc b/components/adblock/core/subscription/subscription_service_impl.cc
+index 8541db84f9..b312ee06bc 100644
+--- a/components/adblock/core/subscription/subscription_service_impl.cc
++++ b/components/adblock/core/subscription/subscription_service_impl.cc
+@@ -164,6 +164,15 @@ void SubscriptionServiceImpl::UninstallFilteringConfiguration(
+   }
+ }
+ 
++void SubscriptionServiceImpl::StartUpdate() {
++  for (auto& entry : maintainers_) {
++    if (!entry.second) {
++      continue;  // Configuration is disabled
++    }
++    entry.second->StartUpdate();
++  }
++}
++
+ std::vector<FilteringConfiguration*>
+ SubscriptionServiceImpl::GetInstalledFilteringConfigurations() {
+   std::vector<FilteringConfiguration*> result;
+diff --git a/components/adblock/core/subscription/subscription_service_impl.h b/components/adblock/core/subscription/subscription_service_impl.h
+index 4f642d1ed0..70b6924500 100644
+--- a/components/adblock/core/subscription/subscription_service_impl.h
++++ b/components/adblock/core/subscription/subscription_service_impl.h
+@@ -42,6 +42,8 @@ namespace adblock {
+ class SubscriptionServiceImpl final : public SubscriptionService,
+                                       public FilteringConfiguration::Observer {
+  public:
++  void StartUpdate() override;
++
+   // Used to notify this about updates to installed subscriptions.
+   using SubscriptionUpdatedCallback =
+       base::RepeatingCallback<void(const GURL& subscription_url)>;
+diff --git a/components/content_settings/core/browser/bromite_content_settings/ads.inc b/components/content_settings/core/browser/bromite_content_settings/ads.inc
+new file mode 100644
+index 0000000000..10fb48b5e7
+--- /dev/null
++++ b/components/content_settings/core/browser/bromite_content_settings/ads.inc
+@@ -0,0 +1,3 @@
++  content_settings::WebsiteSettingsRegistry::GetInstance()
++    ->GetMutable(ContentSettingsType::ADS)
++    ->set_show_into_info_page();
+-- 
+2.34.1
+
