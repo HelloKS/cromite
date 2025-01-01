@@ -126,6 +126,7 @@ Client-hints-overrides.patch
 Allow-building-without-enable_reporting.patch
 Disable-lock-icon-in-address-bar-by-default.patch
 Experimental-user-scripts-support.patch
+Remove-safety-feature-of-userscript-component.patch
 Keep-empty-tabs-between-sessions.patch
 Disable-third-party-origin-trials.patch
 Never-use-HTTP-probes-for-connection-detection.patch

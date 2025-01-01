@@ -1,0 +1,215 @@
+From 601aed3257b53c0176c5cd7df1461d254f5d470e Mon Sep 17 00:00:00 2001
+From: HelloKS <kqwe1859@gmail.com>
+Date: Tue, 31 Dec 2024 10:32:24 +0000
+Subject: [PATCH] Remove safety feature of userscript component
+
+---
+ components/user_scripts/common/user_script.h  |  4 +-
+ .../user_scripts/renderer/injection_host.h    |  5 --
+ .../user_scripts/renderer/script_injection.cc | 61 +------------------
+ .../user_scripts/renderer/script_injection.h  |  6 --
+ .../renderer/web_ui_injection_host.cc         | 18 ------
+ .../renderer/web_ui_injection_host.h          |  1 -
+ 6 files changed, 3 insertions(+), 92 deletions(-)
+
+diff --git a/components/user_scripts/common/user_script.h b/components/user_scripts/common/user_script.h
+index e5b9d29d88..4f93d0071d 100755
+--- a/components/user_scripts/common/user_script.h
++++ b/components/user_scripts/common/user_script.h
+@@ -365,7 +365,7 @@ class UserScript {
+ 
+   // Whether we should try to emulate Greasemonkey's APIs when running this
+   // script.
+-  bool emulate_greasemonkey_ = false;
++  bool emulate_greasemonkey_ = true;
+ 
+   // Whether the user script should run in all frames, or only just the top one.
+   bool match_all_frames_ = false;
+@@ -378,7 +378,7 @@ class UserScript {
+       MatchOriginAsFallbackBehavior::kNever;
+ 
+   // True if the script should be injected into an incognito tab.
+-  bool incognito_enabled_ = false;
++  bool incognito_enabled_ = true;
+ 
+   // Script cannot be enabled
+   bool force_disabled_ = false;
+diff --git a/components/user_scripts/renderer/injection_host.h b/components/user_scripts/renderer/injection_host.h
+index 2cd552ac96..9c4b1a2f99 100755
+--- a/components/user_scripts/renderer/injection_host.h
++++ b/components/user_scripts/renderer/injection_host.h
+@@ -20,11 +20,6 @@ class InjectionHost {
+   InjectionHost(const HostID& host_id);
+   virtual ~InjectionHost();
+ 
+-  // Returns the CSP to be used for the isolated world. Currently this only
+-  // bypasses the main world CSP. If null is returned, the main world CSP is not
+-  // bypassed.
+-  virtual const std::string* GetContentSecurityPolicy() const = 0;
+-
+   // The base url for the host.
+   virtual const GURL& url() const = 0;
+ 
+diff --git a/components/user_scripts/renderer/script_injection.cc b/components/user_scripts/renderer/script_injection.cc
+index 0565ed6158..ba054c3dcd 100755
+--- a/components/user_scripts/renderer/script_injection.cc
++++ b/components/user_scripts/renderer/script_injection.cc
+@@ -30,50 +30,8 @@ namespace user_scripts {
+ 
+ namespace {
+ 
+-using IsolatedWorldMap = std::map<std::string, int>;
+-base::LazyInstance<IsolatedWorldMap>::DestructorAtExit g_isolated_worlds =
+-    LAZY_INSTANCE_INITIALIZER;
+-
+ const int64_t kInvalidRequestId = -1;
+ 
+-// Gets the isolated world ID to use for the given |injection_host|. If no
+-// isolated world has been created for that |injection_host| one will be created
+-// and initialized.
+-int GetIsolatedWorldIdForInstance(const InjectionHost* injection_host) {
+-  static int g_next_isolated_world_id = 1; // Embedder isolated worlds can use IDs in [1, 1<<29).
+-
+-  IsolatedWorldMap& isolated_worlds = g_isolated_worlds.Get();
+-
+-  int id = 0;
+-  const std::string& key = injection_host->id().id();
+-  auto iter = isolated_worlds.find(key);
+-  if (iter != isolated_worlds.end()) {
+-    id = iter->second;
+-  } else {
+-    id = g_next_isolated_world_id++;
+-    // This map will tend to pile up over time, but realistically, you're never
+-    // going to have enough injection hosts for it to matter.
+-    isolated_worlds[key] = id;
+-  }
+-
+-  blink::WebIsolatedWorldInfo info;
+-  info.security_origin =
+-      blink::WebSecurityOrigin::Create(injection_host->url());
+-  info.human_readable_name = blink::WebString::FromUTF8(injection_host->name());
+-  info.stable_id = blink::WebString::FromUTF8(key);
+-
+-  const std::string* csp = injection_host->GetContentSecurityPolicy();
+-  if (csp)
+-    info.content_security_policy = blink::WebString::FromUTF8(*csp);
+-
+-  // Even though there may be an existing world for this |injection_host|'s key,
+-  // the properties may have changed (e.g. due to an extension update).
+-  // Overwrite any existing entries.
+-  blink::SetIsolatedWorldInfo(id, info);
+-
+-  return id;
+-}
+-
+ }  // namespace
+ 
+ // Watches for the deletion of a RenderFrame, after which is_valid will return
+@@ -97,22 +55,6 @@ class ScriptInjection::FrameWatcher : public content::RenderFrameObserver {
+   raw_ptr<ScriptInjection> injection_;
+ };
+ 
+-// static
+-std::string ScriptInjection::GetHostIdForIsolatedWorld(int isolated_world_id) {
+-  const IsolatedWorldMap& isolated_worlds = g_isolated_worlds.Get();
+-
+-  for (const auto& iter : isolated_worlds) {
+-    if (iter.second == isolated_world_id)
+-      return iter.first;
+-  }
+-  return std::string();
+-}
+-
+-// static
+-void ScriptInjection::RemoveIsolatedWorld(const std::string& host_id) {
+-  g_isolated_worlds.Get().erase(host_id);
+-}
+-
+ ScriptInjection::ScriptInjection(
+     std::unique_ptr<ScriptInjector> injector,
+     content::RenderFrame* render_frame,
+@@ -223,7 +165,6 @@ void ScriptInjection::InjectJs(std::set<std::string>* executing_scripts,
+   std::vector<blink::WebScriptSource> sources = injector_->GetJsSources(
+       run_location_, executing_scripts, num_injected_js_scripts);
+   DCHECK(!sources.empty());
+-  int world_id = GetIsolatedWorldIdForInstance(injection_host_.get());
+ 
+   base::ElapsedTimer exec_timer;
+ 
+@@ -244,7 +185,7 @@ void ScriptInjection::InjectJs(std::set<std::string>* executing_scripts,
+           : blink::mojom::EvaluationTiming::kSynchronous;
+ 
+   render_frame_->GetWebFrame()->RequestExecuteScript(
+-      world_id, sources, blink::mojom::UserActivationOption::kDoNotActivate,
++      blink::kMainDOMWorldId, sources, blink::mojom::UserActivationOption::kDoNotActivate,
+       execution_option,
+       blink::mojom::LoadEventBlockingOption::kBlock,
+       base::BindOnce(&ScriptInjection::OnJsInjectionCompleted,
+diff --git a/components/user_scripts/renderer/script_injection.h b/components/user_scripts/renderer/script_injection.h
+index 1aeb294218..bd8fdaec5b 100755
+--- a/components/user_scripts/renderer/script_injection.h
++++ b/components/user_scripts/renderer/script_injection.h
+@@ -45,12 +45,6 @@ class ScriptInjection {
+ 
+   using CompletionCallback = base::OnceCallback<void(ScriptInjection*)>;
+ 
+-  // Return the id of the injection host associated with the given world.
+-  static std::string GetHostIdForIsolatedWorld(int world_id);
+-
+-  // Remove the isolated world associated with the given injection host.
+-  static void RemoveIsolatedWorld(const std::string& host_id);
+-
+   ScriptInjection(std::unique_ptr<ScriptInjector> injector,
+                   content::RenderFrame* render_frame,
+                   std::unique_ptr<const InjectionHost> injection_host,
+diff --git a/components/user_scripts/renderer/web_ui_injection_host.cc b/components/user_scripts/renderer/web_ui_injection_host.cc
+index 8049f3c7e0..de0cec67c2 100755
+--- a/components/user_scripts/renderer/web_ui_injection_host.cc
++++ b/components/user_scripts/renderer/web_ui_injection_host.cc
+@@ -5,13 +5,6 @@
+ #include "web_ui_injection_host.h"
+ #include "base/no_destructor.h"
+ 
+-namespace {
+-
+-// The default secure CSP to be used in order to prevent remote scripts.
+-const char kDefaultSecureCSP[] = "script-src 'self'; object-src 'self';";
+-
+-}
+-
+ WebUIInjectionHost::WebUIInjectionHost(const HostID& host_id)
+   : InjectionHost(host_id),
+     url_(host_id.id()) {
+@@ -20,17 +13,6 @@ WebUIInjectionHost::WebUIInjectionHost(const HostID& host_id)
+ WebUIInjectionHost::~WebUIInjectionHost() {
+ }
+ 
+-const std::string* WebUIInjectionHost::GetContentSecurityPolicy() const {
+-  // Use the main world CSP.
+-  // return nullptr;
+-
+-  // The isolated world will use its own CSP which blocks remotely hosted
+-  // code.
+-  static const base::NoDestructor<std::string> default_isolated_world_csp(
+-      kDefaultSecureCSP);
+-  return default_isolated_world_csp.get();
+-}
+-
+ const GURL& WebUIInjectionHost::url() const {
+   return url_;
+ }
+diff --git a/components/user_scripts/renderer/web_ui_injection_host.h b/components/user_scripts/renderer/web_ui_injection_host.h
+index 810fc66854..d43de87e3c 100755
+--- a/components/user_scripts/renderer/web_ui_injection_host.h
++++ b/components/user_scripts/renderer/web_ui_injection_host.h
+@@ -16,7 +16,6 @@ class WebUIInjectionHost : public InjectionHost {
+ 
+  private:
+   // InjectionHost:
+-  const std::string* GetContentSecurityPolicy() const override;
+   const GURL& url() const override;
+   const std::string& name() const override;
+ 
+-- 
+2.34.1
+
